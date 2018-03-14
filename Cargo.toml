@@ -1,0 +1,13 @@
+[package]
+name = "chrono-english"
+version = "0.1.0"
+authors = ["steve donovan <steve.j.donovan@gmail.com>"]
+
+[dependencies]
+chrono = "0.4"
+scanlex = {path="/home/steve/rust/scanlex"}
+time = "0.1"
+
+[dev-dependencies]
+lapp = "0.3"
+
