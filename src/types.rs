@@ -165,11 +165,18 @@ impl Skip {
             },
             Interval::Months(mm) => {
                 let (y,m0,d) = (base.year(), (base.month()-1) as i32, base.day());
+                let delta = mm*self.skip;
                 // our new month number
-                let mm = m0 + mm*self.skip;
+                let mm = m0 + delta;
                 // which may run over to the next year and so forth
-                let (y,m) = (y + mm/12, mm%12 + 1);
+                let (y,m) = if mm >= 0 {
+                    (y + mm/12, mm%12 + 1)
+                } else {
+                    let pmm = 12 - mm;
+                    (y - pmm/12, 12 - pmm%12 + 1)
+                };
                 // let chrono work out if the result makes sense
+                //println!("{} {} {}",y,m,d);
                 let mut date = base.timezone().ymd_opt(y,m as u32,d).single();
                 // dud dates like Feb 30 may result, so we back off...
                 let mut d = d;
@@ -288,6 +295,7 @@ pub fn time_unit(s: &str) -> Option<Interval> {
             "s" => "sec",
             "m" => "min",
             "h" => "hou",
+            "w" => "wee",
             "d" => "day",
             "y" => "yea",
             _ => return None
@@ -300,6 +308,7 @@ pub fn time_unit(s: &str) -> Option<Interval> {
         "min" => Seconds(60),
         "hou" => Seconds(60*60),
         "day" => Seconds(60*60*24),
+        "wee" => Seconds(60*60*24*7),
         "mon" => Months(1),
         "yea" => Months(12),
         _ => return None

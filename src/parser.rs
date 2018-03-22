@@ -106,11 +106,15 @@ impl <'a> DateParser<'a> {
                     // however, MONTH _might_ be followed by DAY, YEAR
                     if let Some(month) = by_name.as_month() {
                         let t = self.s.get();
-                        if t.is_integer() && self.s.peek() == ',' {
-                            self.s.get_char()?; // eat ','
+                        if t.is_integer() {
                             let day = t.to_int_result::<u32>()?;
-                            let year = self.s.get_int::<u32>()?;
-                            return Ok(Some(DateSpec::absolute(year,month,day)));
+                            return Ok(Some(if self.s.peek() == ',' {
+                                self.s.get_char()?; // eat ','
+                                let year = self.s.get_int::<u32>()?;
+                                DateSpec::absolute(year,month,day)
+                            } else { // MONTH DAY is like DAY MONTH (tho no time!)
+                                DateSpec::from_day_month(day, month, self.direct)
+                            }));
                         }
                     }
                     Some(DateSpec::FromName(by_name))
@@ -120,7 +124,10 @@ impl <'a> DateParser<'a> {
             },
             Token::Int(_) => {
                 let n = t.to_int_result::<u32>()?;
-                let t = self.s.next().or_err("expecting date")?;
+                let t = self.s.get();
+                if t.finished() { // must be a year...
+                    return Ok(Some(DateSpec::absolute(n,1,1)));
+                }
                 match t {
                     Token::Iden(ref name) => {
                         let day = n;
