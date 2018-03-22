@@ -22,7 +22,6 @@ where Tz::Offset: Copy {
         dp = dp.american_date();
     }
     let d = dp.parse()?;
-    //println!("parsed {:?}",d);
 
     // we may have explicit hour:minute:sec
     let tspec = match d.time {
@@ -59,9 +58,10 @@ mod tests {
         assert_eq!(display(parse_date_string("next mon",base,Dialect::Uk)),"2018-03-26T00:00:00+00:00");
         assert_eq!(display(parse_date_string("last fri 9.30",base,Dialect::Uk)),"2018-03-16T09:30:00+00:00");
 
-        // date expressed as month, day - relative to today
+        // date expressed as month, day - relative to today. May have a time part
         assert_eq!(display(parse_date_string("9/11",base,Dialect::Us)),"2018-09-11T00:00:00+00:00");
         assert_eq!(display(parse_date_string("last 9/11",base,Dialect::Us)),"2017-09-11T00:00:00+00:00");
+        assert_eq!(display(parse_date_string("last 9/11 9am",base,Dialect::Us)),"2017-09-11T09:00:00+00:00");
         assert_eq!(display(parse_date_string("April 1 8.30pm",base,Dialect::Uk)),"2018-04-01T20:30:00+00:00");
 
         // advance by time unit from today

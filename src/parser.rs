@@ -47,22 +47,19 @@ impl <'a> DateParser<'a> {
         } else {
             (day_or_month, month_or_day)
         };
-        Ok(if let Ok(ch) = self.s.get_char() {
-            if ch == '/' {
-                let y = self.s.get_int::<u32>()?;
-                let y = if y < 100 { // pivot (1940, 2040)
-                    if y > 40 {
-                        1900 + y
-                    } else {
-                        2000 + y
-                    }
+        Ok(if self.s.peek() == '/' {
+            self.s.get();
+            let y = self.s.get_int::<u32>()?;
+            let y = if y < 100 { // pivot (1940, 2040)
+                if y > 40 {
+                    1900 + y
                 } else {
-                    y
-                };
-                DateSpec::absolute(y,m,d)
+                    2000 + y
+                }
             } else {
-                return date_result("expecting '/'");
-            }
+                y
+            };
+            DateSpec::absolute(y,m,d)
         } else {
             DateSpec::FromName(ByName::from_day_month(d,m,self.direct))
         })
