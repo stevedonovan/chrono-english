@@ -93,16 +93,30 @@ impl ByName {
         ByName::DayMonth(YearDate{direct: direct, day: d, month: m})
     }
 
-    pub fn to_date<Tz: TimeZone>(self, base: Date<Tz>) -> Option<Date<Tz>>
+    pub fn to_date<Tz: TimeZone>(self, base: Date<Tz>, american: bool) -> Option<Date<Tz>>
     where <Tz as TimeZone>::Offset: Copy {
         let this_year = base.year();
         match self {
-            ByName::WeekDay(nd) => {
+            ByName::WeekDay(mut nd) => {
+                // a plain 'Friday' means the same as 'next Friday'.
+                // an _explicit_ 'next Friday' has dialect-dependent meaning!
+                // In UK English, it means 'Friday of next week',
+                // but in US English, just the next Friday
+                let mut extra_week = 0;
+                match nd.direct {
+                    Direction::Here => nd.direct = Direction::Next,
+                    Direction::Next => {
+                        if ! american {
+                            extra_week = 7;
+                        }
+                    },
+                    _ => (),
+                };
                 let this_day = base.weekday().num_days_from_monday() as i64;
                 let that_day = nd.unit as i64;
                 let mut date = add_days(base,that_day - this_day)?;
                 if let Some(correct) = next_last_direction(date,base,nd.direct) {
-                    date = add_days(date,7*correct as i64)?;
+                    date = add_days(date,7*correct as i64 + extra_week)?;
                 }
                 Some(date)
             },
@@ -220,13 +234,13 @@ impl DateSpec {
         )
     }
 
-    pub fn to_date_time<Tz: TimeZone>(self, base: DateTime<Tz>, ts: TimeSpec) -> Option<DateTime<Tz>>
+    pub fn to_date_time<Tz: TimeZone>(self, base: DateTime<Tz>, ts: TimeSpec, american: bool) -> Option<DateTime<Tz>>
     where Tz::Offset: Copy {
         use DateSpec::*;
         match self {
             Absolute(ad) => ts.to_date_time(ad.to_date(base)?),
             Relative(skip) => skip.to_date_time(base,ts), // might need time
-            FromName(byname) => ts.to_date_time(byname.to_date(base.date())?),
+            FromName(byname) => ts.to_date_time(byname.to_date(base.date(),american)?),
         }
     }
 }

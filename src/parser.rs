@@ -14,7 +14,7 @@ pub struct DateParser<'a> {
     s: Scanner<'a>,
     direct: Direction,
     maybe_time: Option<(u32,TimeKind)>,
-    american: bool, // 9/11, not 20/03
+    pub american: bool, // 9/11, not 20/03
 }
 
 impl <'a> DateParser<'a> {

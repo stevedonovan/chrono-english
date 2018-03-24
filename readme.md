@@ -16,16 +16,19 @@ The informal "01/04/18" or American form "04/01/18" is supported.
 There is a `Dialect` enum to specify what kind of date English you would like to speak.
 Both short and long years are accepted in this form; short dates pivot between 1940 and 2040.
 
-Then there are are _relative_ dates like 'April 1' and '9/11` (this
+Then there are are _relative_ dates like 'April 1' and '9/11' (this
 if using `Dialect::Us`). The current year is assumed, but this can be modified by 'next'
 and 'last'. For instance, it is now the 13th of March, 2018: 'April 1' and 'next April 1'
 are in 2018; 'last April 1' is in 2017.
 
 Another relative form is simply a month name
 like 'apr' or 'April' (case-insensitive, only first three letters significant) where the
-day is assumed to be the 1st.  A week-day works in the same way: 'friday' means this
-coming Friday, relative to Tuesday - it is simply the Friday of this week.
-'last Friday' and 'next Friday' are unambiguous.
+day is assumed to be the 1st.
+
+A week-day works in the same way: 'friday' means this
+coming Friday, relative to today. 'last Friday' is unambiguous,
+but 'next Friday' has different meanings; in the US it means the same as 'Friday'
+but otherwise it means the Friday of next week (plus 7 days)
 
 Date and time can be specified also by a number of time units. So "2 days", "3 hours".
 Again, first three letters, but 'd','m' and 'y' are understood (so "3h"). We make

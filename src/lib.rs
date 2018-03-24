@@ -16,16 +16,19 @@
 //! There is a `Dialect` enum to specify what kind of date English you would like to speak.
 //! Both short and long years are accepted in this form; short dates pivot between 1940 and 2040.
 //!
-//! Then there are are _relative_ dates like 'April 1' and '9/11` (this
+//! Then there are are _relative_ dates like 'April 1' and '9/11' (this
 //! if using `Dialect::Us`). The current year is assumed, but this can be modified by 'next'
 //! and 'last'. For instance, it is now the 13th of March, 2018: 'April 1' and 'next April 1'
 //! are in 2018; 'last April 1' is in 2017.
 //!
 //! Another relative form is simply a month name
 //! like 'apr' or 'April' (case-insensitive, only first three letters significant) where the
-//! day is assumed to be the 1st.  A week-day works in the same way: 'friday' means this
-//! coming Friday, relative to Tuesday - it is simply the Friday of this week.
-//! 'last Friday' and 'next Friday' are unambiguous.
+//! day is assumed to be the 1st.
+//!
+//! A week-day works in the same way: 'friday' means this
+//! coming Friday, relative to today. 'last Friday' is unambiguous,
+//! but 'next Friday' has different meanings; in the US it means the same as 'Friday'
+//! but otherwise it means the Friday of next week (plus 7 days)
 //!
 //! Date and time can be specified also by a number of time units. So "2 days", "3 hours".
 //! Again, first three letters, but 'd','m' and 'y' are understood (so "3h"). We make
@@ -91,7 +94,7 @@ where Tz::Offset: Copy {
     };
 
     let date_time = if let Some(dspec) = d.date {
-        dspec.to_date_time(now,tspec).or_err("bad date")?
+        dspec.to_date_time(now,tspec,dp.american).or_err("bad date")?
     } else { // no date, time set for today's date
         tspec.to_date_time(now.date()).or_err("bad time")?
     };
@@ -116,7 +119,16 @@ mod tests {
         assert_eq!(display(parse_date_string("friday",base,Dialect::Uk)),"2018-03-23T00:00:00+00:00");
         assert_eq!(display(parse_date_string("friday 10:30",base,Dialect::Uk)),"2018-03-23T10:30:00+00:00");
         assert_eq!(display(parse_date_string("friday 8pm",base,Dialect::Uk)),"2018-03-23T20:00:00+00:00");
-        assert_eq!(display(parse_date_string("next mon",base,Dialect::Uk)),"2018-03-26T00:00:00+00:00");
+
+        // The day of week is the _next_ day after today, so "Tuesday" is the next Tuesday after Wednesday
+        assert_eq!(display(parse_date_string("tues",base,Dialect::Uk)),"2018-03-27T00:00:00+00:00");
+
+        // The expression 'next Monday' is ambiguous; in the US it means the day following (same as 'Monday')
+        // (This is how the `date` command interprets it)
+        assert_eq!(display(parse_date_string("next mon",base,Dialect::Us)),"2018-03-26T00:00:00+00:00");
+        // but otherwise it means the day in the next week..
+        assert_eq!(display(parse_date_string("next mon",base,Dialect::Uk)),"2018-04-02T00:00:00+00:00");
+
         assert_eq!(display(parse_date_string("last fri 9.30",base,Dialect::Uk)),"2018-03-16T09:30:00+00:00");
 
         // date expressed as month, day - relative to today. May have a time part
