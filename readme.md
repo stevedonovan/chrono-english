@@ -4,13 +4,13 @@ I've always admired the ability of the GNU `date` command to
 convert "English" expressions to dates and times with `date -d expr`.
 `chrono-english` does similar expressions, although with extensions, so
 that for instance you can specify both the day and the time "next friday 8pm".
-No attempt at full natural language parsing is made - a limited set of
+No attempt at full natural language parsing is made - only a limited set of
 patterns is supported.
 
 ## Supported Formats
 
 `chrono-english` does _absolute_ dates:  ISO-like dates "2018-04-01" and the month name forms
-"1 April 2018" and "April 1, 2018". There's no ambiguity so both are understood.
+"1 April 2018" and "April 1, 2018". (There's no ambiguity so both of these forms are fine)
 
 The informal "01/04/18" or American form "04/01/18" is supported.
 There is a `Dialect` enum to specify what kind of date English you would like to speak.
@@ -24,8 +24,8 @@ are in 2018; 'last April 1' is in 2017.
 Another relative form is simply a month name
 like 'apr' or 'April' (case-insensitive, only first three letters significant) where the
 day is assumed to be the 1st.  A week-day works in the same way: 'friday' means this
-coming Friday, relative to Tuesday. 'last Friday' and 'next Friday' are
-unambiguous.
+coming Friday, relative to Tuesday - it is simply the Friday of this week.
+'last Friday' and 'next Friday' are unambiguous.
 
 Date and time can be specified also by a number of time units. So "2 days", "3 hours".
 Again, first three letters, but 'd','m' and 'y' are understood (so "3h"). We make

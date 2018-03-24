@@ -3,6 +3,15 @@ name = "chrono-english"
 version = "0.1.0"
 authors = ["steve donovan <steve.j.donovan@gmail.com>"]
 
+description = "parses simple English dates, inspired by Linux date command"
+
+documentation = "https://docs.rs/chrono-english"
+repository = "https://github.com/stevedonovan/chrono-english.git"
+
+readme = "readme.md"
+
+license="MIT"
+
 [dependencies]
 chrono = "0.4"
 scanlex = "0.1.2"
