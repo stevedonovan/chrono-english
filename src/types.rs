@@ -116,7 +116,10 @@ impl ByName {
                 let that_day = nd.unit as i64;
                 let mut date = add_days(base,that_day - this_day)?;
                 if let Some(correct) = next_last_direction(date,base,nd.direct) {
-                    date = add_days(date,7*correct as i64 + extra_week)?;
+                    date = add_days(date,7*correct as i64)?;
+                }
+                if extra_week > 0 {
+                    date = add_days(date,extra_week)?;
                 }
                 Some(date)
             },
