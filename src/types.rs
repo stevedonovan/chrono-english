@@ -279,7 +279,7 @@ pub fn week_day(s: &str) -> Option<u32> {
         "mon" => 0,
         "tue" => 1,
         "wed" => 2,
-        "thur" => 3,
+        "thu" => 3,
         "fri" => 4,
         "sat" => 5,
         _ => return None
