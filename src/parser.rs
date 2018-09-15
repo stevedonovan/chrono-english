@@ -3,11 +3,12 @@ use errors::*;
 use types::*;
 
 // when we parse dates, there's often a bit of time parsed..
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 enum TimeKind {
     Formal,
     Informal,
-    AmPm(bool)
+    AmPm(bool),
+    Unknown,
 }
 
 pub struct DateParser<'a> {
@@ -144,9 +145,19 @@ impl <'a> DateParser<'a> {
                                 n = -n;
                             } else {
                                 let t = self.s.get();
-                                if let Some(name) = t.as_iden() {
+                                let got_ago = if let Some(name) = t.as_iden() {
                                     if name == "ago" {
                                         n = -n;
+                                        true
+                                    } else {
+                                        return date_result("only expected 'ago'");
+                                    }
+                                } else {
+                                    false
+                                };
+                                if ! got_ago {
+                                    if let Some(h) = t.to_integer() {
+                                        self.maybe_time = Some((h as u32, TimeKind::Unknown));
                                     }
                                 }
                             }
@@ -242,13 +253,21 @@ impl <'a> DateParser<'a> {
 
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {
         if let Some(hour_sep) = self.maybe_time {
-            let (h,kind) = hour_sep;
+            let (h,mut kind) = hour_sep;
+            if let TimeKind::Unknown = kind {
+                kind = match self.s.get_char()? {
+                    ':' => TimeKind::Formal,
+                    '.' => TimeKind::Informal,
+                    ch => return date_result(&format!("expected : or ., not {}", ch)),
+                };
+            }
             Ok(Some(
                 match kind {
                     TimeKind::Formal => self.formal_time(h)?,
                     TimeKind::Informal => self.informal_time(h)?,
                     TimeKind::AmPm(is_pm) =>
                         DateParser::hour_time(if is_pm {"pm"} else {"am"},h)?,
+                    TimeKind::Unknown => unreachable!(),
                 }
             ))
         } else {

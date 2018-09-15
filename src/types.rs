@@ -163,6 +163,7 @@ impl AbsDate {
 #[derive(Debug)]
 pub enum Interval {
     Seconds(i32),
+    Days(i32),
     Months(i32),
 }
 
@@ -179,6 +180,17 @@ impl Skip {
                 base.checked_add_signed(
                     Duration::seconds((secs as i64)*(self.skip as i64))
                 ).unwrap() // <--- !!!!
+            },
+            Interval::Days(days) => {
+                let secs = 60*60*24*days;
+                let date = base.checked_add_signed(
+                    Duration::seconds((secs as i64)*(self.skip as i64))
+                ).unwrap();
+                if ! ts.empty() {
+                    ts.to_date_time(date.date())?
+                } else {
+                    date
+                }
             },
             Interval::Months(mm) => {
                 let (y,m0,d) = (base.year(), (base.month()-1) as i32, base.day());
@@ -253,11 +265,20 @@ pub struct TimeSpec {
     pub hour: u32,
     pub min: u32,
     pub sec: u32,
+    pub empty: bool,
 }
 
 impl TimeSpec {
     pub fn new(hour: u32, min: u32, sec: u32) -> TimeSpec {
-        TimeSpec{hour: hour, min: min, sec: sec}
+        TimeSpec{hour: hour, min: min, sec: sec, empty: false}
+    }
+
+    pub fn new_empty() -> TimeSpec {
+        TimeSpec{hour: 0, min: 0, sec: 0, empty: true}
+    }
+
+    pub fn empty(&self) -> bool {
+        self.empty
     }
 
     pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
@@ -324,8 +345,8 @@ pub fn time_unit(s: &str) -> Option<Interval> {
         "sec" => Seconds(1),
         "min" => Seconds(60),
         "hou" => Seconds(60*60),
-        "day" => Seconds(60*60*24),
-        "wee" => Seconds(60*60*24*7),
+        "day" => Days(1),
+        "wee" => Days(7),
         "mon" => Months(1),
         "yea" => Months(12),
         _ => return None
