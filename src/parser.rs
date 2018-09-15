@@ -186,14 +186,31 @@ impl <'a> DateParser<'a> {
 
     fn formal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
         let min = self.s.get_int::<u32>()?;
+        // minute may be followed by [:secs][am|pm]
+        let mut tnext = None;
         let sec = if let Some(t) = self.s.next() {
-            let ch = t.to_char_result()?;
-            if ch != ':' {
-                return date_result("expecting ':'");
+            if let Some(ch) = t.as_char() {
+                if ch != ':' {
+                    return date_result("expecting ':'");
+                }
+                self.s.get_int::<u32>()?
+            } else {
+                tnext = Some(t);
+                0
             }
-            self.s.get_int::<u32>()?
         } else {
             0
+        };
+        // we found seconds, look ahead
+        if tnext.is_none() {
+            tnext = self.s.next();
+        }
+        // can only be am/pm
+        let hour = if let Some(t) = tnext {
+            let name = t.to_iden_result()?;
+            DateParser::am_pm(&name,hour)?
+        } else {
+            hour
         };
         Ok(TimeSpec::new(hour,min,sec))
     }

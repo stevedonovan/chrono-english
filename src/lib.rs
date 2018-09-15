@@ -156,6 +156,7 @@ mod tests {
         assert_eq!(display(parse_date_string("2017-06-30 08:20:30",base,Dialect::Uk)),"2017-06-30T08:20:30+00:00");
         assert_eq!(display(parse_date_string("2017-06-30 8.20",base,Dialect::Uk)),"2017-06-30T08:20:00+00:00");
         assert_eq!(display(parse_date_string("2017-06-30 8.30pm",base,Dialect::Uk)),"2017-06-30T20:30:00+00:00");
+        assert_eq!(display(parse_date_string("2017-06-30 8:30pm",base,Dialect::Uk)),"2017-06-30T20:30:00+00:00");
         assert_eq!(display(parse_date_string("2017-06-30 2am",base,Dialect::Uk)),"2017-06-30T02:00:00+00:00");
         assert_eq!(display(parse_date_string("30 June 2018",base,Dialect::Uk)),"2018-06-30T00:00:00+00:00");
         assert_eq!(display(parse_date_string("June 30, 2018",base,Dialect::Uk)),"2018-06-30T00:00:00+00:00");
