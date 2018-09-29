@@ -252,7 +252,8 @@ impl <'a> DateParser<'a> {
     }
 
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {
-        if let Some(hour_sep) = self.maybe_time {
+        // here the date parser looked ahead and saw an hour followed by some separator
+        if let Some(hour_sep) = self.maybe_time { // didn't see a separator, so look...
             let (h,mut kind) = hour_sep;
             if let TimeKind::Unknown = kind {
                 kind = match self.s.get_char()? {
@@ -270,11 +271,15 @@ impl <'a> DateParser<'a> {
                     TimeKind::Unknown => unreachable!(),
                 }
             ))
-        } else {
+        } else { // just a plain time with no date
+            if self.s.peek() == 'T' {
+                self.s.nextch();
+            }
             let t = self.s.get();
             if t.finished() {
                 return Ok(None);
             }
+
             let mut hour = t.to_int_result::<u32>()?;
             Ok(Some(match self.s.get() {
                 Token::Char(ch) => match ch {
