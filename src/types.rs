@@ -266,15 +266,20 @@ pub struct TimeSpec {
     pub min: u32,
     pub sec: u32,
     pub empty: bool,
+    pub offset: Option<i64>,
 }
 
 impl TimeSpec {
     pub fn new(hour: u32, min: u32, sec: u32) -> TimeSpec {
-        TimeSpec{hour: hour, min: min, sec: sec, empty: false}
+        TimeSpec{hour, min, sec, empty: false, offset: None}
+    }
+
+    pub fn new_with_offset(hour: u32, min: u32, sec: u32, offset: i64) -> TimeSpec {
+        TimeSpec{hour, min, sec, empty: false, offset: Some(offset)}
     }
 
     pub fn new_empty() -> TimeSpec {
-        TimeSpec{hour: 0, min: 0, sec: 0, empty: true}
+        TimeSpec{hour: 0, min: 0, sec: 0, empty: true, offset: None}
     }
 
     pub fn empty(&self) -> bool {
@@ -283,6 +288,8 @@ impl TimeSpec {
 
     pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
         d.and_hms_opt(self.hour, self.min, self.sec)
+
+        // FixedOffset::local_minus_utc
     }
 }
 

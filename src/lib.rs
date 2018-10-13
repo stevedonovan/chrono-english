@@ -92,7 +92,9 @@ where Tz::Offset: Copy {
         Some(tspec) => tspec,
         None => TimeSpec::new_empty(),
     };
-
+    if tspec.offset.is_some() {
+     //   return DateTime::fix()::parse_from_rfc3339(s);
+    }
     let date_time = if let Some(dspec) = d.date {
         dspec.to_date_time(now,tspec,dp.american).or_err("bad date")?
     } else { // no date, time set for today's date

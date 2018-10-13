@@ -216,14 +216,40 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
-        // can only be am/pm
-        let hour = if let Some(t) = tnext {
-            let name = t.to_iden_result()?;
-            DateParser::am_pm(&name,hour)?
+        println!("token {:?}", tnext);
+        if tnext.is_none() {
+            Ok(TimeSpec::new(hour,min,sec))
+        } else
+        if let Some(ch) = tnext.as_ref().unwrap().as_char() {
+            let expecting_offset = match ch {
+                '+' | '-' => true,
+                'Z' => false,
+                _ => return date_result("expected +/- or Z")
+            };
+            let offset = if expecting_offset {
+                let h = self.s.get_int::<u32>()?;
+                let m = if self.s.peek() == ':' {
+                    self.s.nextch();
+                    self.s.get_int::<u32>()?
+                } else { // but what about 0030 etc?
+                    0
+                };
+                let res = 60*(m + 60*h);
+                (res as i64)*if ch == '-' {-1} else {1}
+            } else {
+                0
+            };
+            Ok(TimeSpec::new_with_offset(hour,min,sec,offset))
         } else {
-            hour
-        };
-        Ok(TimeSpec::new(hour,min,sec))
+            // can only be am/pm
+            let hour = if let Some(t) = tnext {
+                let name = t.to_iden_result()?;
+                DateParser::am_pm(&name,hour)?
+            } else {
+                hour
+            };
+            Ok(TimeSpec::new(hour,min,sec))
+        }
     }
 
     fn informal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
@@ -271,7 +297,7 @@ impl <'a> DateParser<'a> {
                     TimeKind::Unknown => unreachable!(),
                 }
             ))
-        } else { // just a plain time with no date
+        } else { // no lookahead...
             if self.s.peek() == 'T' {
                 self.s.nextch();
             }
