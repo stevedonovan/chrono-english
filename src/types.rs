@@ -49,18 +49,20 @@ pub enum ByName {
     DayMonth(YearDate),
 }
 
-fn add_days<Tz: TimeZone>(base: Date<Tz>, days: i64) -> Option<Date<Tz>> {
+fn add_days<Tz: TimeZone>(base: DateTime<Tz>, days: i64) -> Option<DateTime<Tz>> {
     base.checked_add_signed(Duration::days(days))
 }
 
-fn next_last_direction<Tz: TimeZone>(date: Date<Tz>, base: Date<Tz>, direct: Direction) -> Option<i32> {
-    let ahead = date > base;
+//fn next_last_direction<Tz: TimeZone>(date: Date<Tz>, base: Date<Tz>, direct: Direction) -> Option<i32> {
+
+fn next_last_direction<T: PartialOrd + Copy>(date: T, base: T, direct: Direction) -> Option<i32> {
     let mut res = None;
-    if ahead {
+    if date > base {
         if direct == Direction::Last {
             res = Some(-1);
         }
-    } else {
+    } else
+    if date < base {
         if direct == Direction::Next {
             res = Some(1)
         }
@@ -93,7 +95,7 @@ impl ByName {
         ByName::DayMonth(YearDate{direct: direct, day: d, month: m})
     }
 
-    pub fn to_date<Tz: TimeZone>(self, base: Date<Tz>, american: bool) -> Option<Date<Tz>>
+    pub fn to_date_time<Tz: TimeZone>(self, base: DateTime<Tz>, ts: TimeSpec, american: bool) -> Option<DateTime<Tz>>
     where <Tz as TimeZone>::Offset: Copy {
         let this_year = base.year();
         match self {
@@ -114,28 +116,37 @@ impl ByName {
                 };
                 let this_day = base.weekday().num_days_from_monday() as i64;
                 let that_day = nd.unit as i64;
-                let mut date = add_days(base,that_day - this_day)?;
+                let diff_days = that_day - this_day;
+                let mut date = add_days(base,diff_days)?;
                 if let Some(correct) = next_last_direction(date,base,nd.direct) {
                     date = add_days(date,7*correct as i64)?;
                 }
                 if extra_week > 0 {
                     date = add_days(date,extra_week)?;
                 }
-                Some(date)
+                if diff_days == 0 {
+                    // same day - comparing times will determine which way we swing...
+                    let base_time = base.time();
+                    let this_time = NaiveTime::from_hms(ts.hour,ts.min,ts.sec);
+                    if let Some(correct) = next_last_direction(this_time,base_time,nd.direct) {
+                        date = add_days(date,7*correct as i64)?;
+                    }
+                }
+                ts.to_date_time(date.date())
             },
             ByName::MonthName(nd) => {
                 let mut date = base.timezone().ymd_opt(this_year,nd.unit,1).single()?;
-                if let Some(correct) = next_last_direction(date,base,nd.direct) {
+                if let Some(correct) = next_last_direction(date,base.date(),nd.direct) {
                     date = base.timezone().ymd_opt(this_year + correct,nd.unit,1).single()?;
                 }
-                Some(date)
+                ts.to_date_time(date)
             },
             ByName::DayMonth(yd) => {
                 let mut date = base.timezone().ymd_opt(this_year,yd.month,yd.day).single()?;
-                if let Some(correct) = next_last_direction(date,base,yd.direct) {
+                if let Some(correct) = next_last_direction(date,base.date(),yd.direct) {
                     date = base.timezone().ymd_opt(this_year + correct,yd.month,yd.day).single()?;
                 }
-                Some(date)
+                ts.to_date_time(date)
             }
         }
     }
@@ -255,7 +266,7 @@ impl DateSpec {
         match self {
             Absolute(ad) => ts.to_date_time(ad.to_date(base)?),
             Relative(skip) => skip.to_date_time(base,ts), // might need time
-            FromName(byname) => ts.to_date_time(byname.to_date(base.date(),american)?),
+            FromName(byname) => byname.to_date_time(base,ts,american),
         }
     }
 }

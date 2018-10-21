@@ -216,7 +216,7 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
-        println!("token {:?}", tnext);
+        //println!("token {:?}", tnext);
         if tnext.is_none() {
             Ok(TimeSpec::new(hour,min,sec))
         } else
