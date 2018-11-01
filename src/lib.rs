@@ -72,6 +72,7 @@ mod errors;
 mod types;
 use types::*;
 use errors::*;
+pub use errors::{DateResult, DateError};
 
 #[derive(Clone,Copy)]
 pub enum Dialect {
