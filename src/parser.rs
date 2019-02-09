@@ -80,6 +80,7 @@ impl <'a> DateParser<'a> {
         if let Some(name) = t.as_iden() {
             let shortcut = match name {
                 "now" => Some(0),
+                "today" => Some(0),
                 "yesterday" => Some(-1),
                 "tomorrow" => Some(1),
                 _ => None
