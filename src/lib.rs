@@ -42,9 +42,10 @@
 //!
 //! ## API
 //!
-//! There is exactly one entry point, which is given the date string, a `DateTime` from
-//! which relative dates and times operate, and a dialect (either `Dialect::Uk`
-//! or `Dialect::Us` currently.) The base time also specifies the desired timezone.
+//! There are two entry points: `parse_date_string` and `parse_duration`. The
+//! first is given the date string, a `DateTime` from which relative dates and
+//! times operate, and a dialect (either `Dialect::Uk` or `Dialect::Us`
+//! currently.) The base time also specifies the desired timezone.
 //!
 //! ```ignore
 //! extern crate chrono_english;
@@ -60,6 +61,15 @@
 //! There is a little command-line program `parse-date` in the `examples` folder which can be used to play
 //! with these expressions.
 //!
+//! The other function, `parse_duration`, lets you access just the relative part
+//! of a string like 'two days ago' or '12 hours'. If successful, returns an
+//! `Interval`, which is a number of seconds, days, or months.
+//!
+//! ```
+//! use chrono_english::{parse_duration,Interval};
+//!
+//! assert_eq!(parse_duration("15m ago").unwrap(), Interval::Seconds(-15 * 60));
+//! ```
 //!
 
 extern crate scanlex;

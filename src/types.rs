@@ -166,6 +166,12 @@ impl AbsDate {
     }
 }
 
+/// A generic amount of time, in either seconds, days, or months.
+///
+/// This way, a user can decide how they want to treat days (which do
+/// not always have the same number of seconds) or months (which do not always
+/// have the same number of days).
+//
 // Skipping a given number of time units.
 // The subtlety is that we treat duration as seconds until we get
 // to months, where we want to preserve dates. So adding a month to
