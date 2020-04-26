@@ -74,6 +74,7 @@ use types::*;
 use errors::*;
 
 pub use errors::{DateResult,DateError};
+pub use types::Interval;
 
 #[derive(Clone,Copy)]
 pub enum Dialect {
@@ -103,6 +104,26 @@ where Tz::Offset: Copy {
         tspec.to_date_time(now.date()).or_err("bad time")?
     };
     Ok(date_time)
+}
+
+pub fn parse_duration(s: &str) -> DateResult<Interval> {
+    let mut dp = parser::DateParser::new(s);
+    let d = dp.parse()?;
+
+    if d.time.is_some() {
+        return date_result("unexpected time component");
+    }
+
+    // shouldn't happen, but.
+    if d.date.is_none() {
+        return date_result("could not parse date");
+    }
+
+    match d.date.unwrap() {
+        DateSpec::Absolute(_) => date_result("unexpected absolute date"),
+        DateSpec::FromName(_) => date_result("unexpected date component"),
+        DateSpec::Relative(skip) => Ok(skip.to_interval()),
+    }
 }
 
 #[cfg(test)]
@@ -172,4 +193,31 @@ mod tests {
 
     }
 
+    fn get_err(r: DateResult<Interval>) -> String {
+        r.err().unwrap().to_string()
+    }
+
+    #[test]
+    fn durations() {
+        assert_eq!(parse_duration("6h").unwrap(), Interval::Seconds(6 * 3600));
+        assert_eq!(parse_duration("4 hours ago").unwrap(), Interval::Seconds(-4 * 3600));
+        assert_eq!(parse_duration("5 min").unwrap(), Interval::Seconds(5 * 60));
+        assert_eq!(parse_duration("10m").unwrap(), Interval::Seconds(10 * 60));
+        assert_eq!(parse_duration("15m ago").unwrap(), Interval::Seconds(-15 * 60));
+
+        assert_eq!(parse_duration("1 day").unwrap(), Interval::Days(1));
+        assert_eq!(parse_duration("2 days ago").unwrap(), Interval::Days(-2));
+        assert_eq!(parse_duration("3 weeks").unwrap(), Interval::Days(21));
+        assert_eq!(parse_duration("2 weeks ago").unwrap(), Interval::Days(-14));
+
+        assert_eq!(parse_duration("1 month").unwrap(), Interval::Months(1));
+        assert_eq!(parse_duration("6 months").unwrap(), Interval::Months(6));
+        assert_eq!(parse_duration("8 years").unwrap(), Interval::Months(12 * 8));
+
+        // errors
+        assert_eq!(get_err(parse_duration("2020-01-01")), "unexpected absolute date");
+        assert_eq!(get_err(parse_duration("2 days 15:00")), "unexpected time component");
+        assert_eq!(get_err(parse_duration("tuesday")), "unexpected date component");
+        assert_eq!(get_err(parse_duration("bananas")), "expected week day or month name");
+    }
 }

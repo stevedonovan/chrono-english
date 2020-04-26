@@ -171,7 +171,7 @@ impl AbsDate {
 // to months, where we want to preserve dates. So adding a month to
 // '5 May' gives '5 June'. Adding a month to '30 Jan' gives 'Feb 28' or 'Feb 29'
 // depending on whether this is a leap year.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Interval {
     Seconds(i32),
     Days(i32),
@@ -231,6 +231,16 @@ impl Skip {
                 ts.to_date_time(date.unwrap())?
             },
         })
+    }
+
+    pub fn to_interval(self) -> Interval {
+        use Interval::*;
+
+        match self.unit {
+            Seconds(s) => Seconds(s * self.skip),
+            Days(d) => Days(d * self.skip),
+            Months(m) => Months(m * self.skip),
+        }
     }
 }
 
