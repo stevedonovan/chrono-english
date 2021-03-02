@@ -8,7 +8,7 @@ extern crate lapp;
 
 use std::fmt::Display;
 use std::error::Error;
-type BoxResult<T> = Result<T,Box<Error>>;
+type BoxResult<T> = Result<T,Box<dyn Error>>;
 
 const USAGE: &str = "
 Parsing Dates in English
@@ -51,7 +51,7 @@ fn run() -> BoxResult<()> {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("error: {}",e.description());
+        eprintln!("error: {}",e);
         std::process::exit(1);
     }
 }

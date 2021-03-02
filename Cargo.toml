@@ -1,6 +1,6 @@
 [package]
 name = "chrono-english"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["steve donovan <steve.j.donovan@gmail.com>"]
 
 description = "parses simple English dates, inspired by Linux date command"
@@ -14,7 +14,7 @@ license="MIT"
 
 [dependencies]
 chrono = "0.4"
-scanlex = "0.1.2"
+scanlex = "0.1"
 time = "0.1"
 
 [dev-dependencies]

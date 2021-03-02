@@ -307,7 +307,7 @@ impl <'a> DateParser<'a> {
                 return Ok(None);
             }
 
-            let mut hour = t.to_int_result::<u32>()?;
+            let hour = t.to_int_result::<u32>()?;
             Ok(Some(match self.s.get() {
                 Token::Char(ch) => match ch {
                     ':' => self.formal_time(hour)?,
