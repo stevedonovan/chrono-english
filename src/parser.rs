@@ -217,8 +217,20 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
+        let micros = if let Some(Some('.')) = tnext.as_ref().map(|t| t.as_char()) {
+            let frac = self.s.grab_while(char::is_numeric);
+            if frac.is_empty() {
+                return date_result("expected fractional second after '.'");
+            }
+            let frac = "0.".to_owned() + &frac;
+            let micros_f = frac.parse::<f64>().unwrap() * 1.0e6;
+            tnext = self.s.next();
+            micros_f as u32
+        } else {
+            0
+        };
         if tnext.is_none() {
-            Ok(TimeSpec::new(hour,min,sec))
+            Ok(TimeSpec::new(hour, min, sec, micros ))
         } else {
             let tok = tnext.as_ref().unwrap();
             if let Some(ch) = tok.as_char() {
@@ -242,16 +254,16 @@ impl <'a> DateParser<'a> {
                 } else {
                     0
                 };
-                Ok(TimeSpec::new_with_offset(hour, min, sec, offset))
+                Ok(TimeSpec::new_with_offset(hour, min, sec, offset,micros))
             } else if let Some(id) = tok.as_iden() {
                 if id == "Z" {
-                    Ok(TimeSpec::new_with_offset(hour,min,sec,0))
+                    Ok(TimeSpec::new_with_offset(hour,min,sec,0,micros))
                 } else { // am or pm
                     let hour = DateParser::am_pm(&id, hour)?;
-                    Ok(TimeSpec::new(hour, min, sec))
+                    Ok(TimeSpec::new(hour, min, sec, micros))
                 }
             } else {
-                Ok(TimeSpec::new(hour, min, sec))
+                Ok(TimeSpec::new(hour, min, sec, micros))
             }
         }
     }
@@ -264,7 +276,7 @@ impl <'a> DateParser<'a> {
         } else {
             hour
         };
-        Ok(TimeSpec::new(hour,min,0))
+        Ok(TimeSpec::new(hour, min, 0, 0))
     }
 
     fn am_pm(name: &str, mut hour: u32) -> DateResult<u32> {
@@ -278,7 +290,7 @@ impl <'a> DateParser<'a> {
     }
 
     fn hour_time(name: &str, hour: u32) -> DateResult<TimeSpec> {
-        Ok(TimeSpec::new (DateParser::am_pm(name,hour)?,0,0))
+        Ok(TimeSpec::new (DateParser::am_pm(name, hour)?, 0, 0, 0))
     }
 
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {

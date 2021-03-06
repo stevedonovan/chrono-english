@@ -277,19 +277,20 @@ pub struct TimeSpec {
     pub sec: u32,
     pub empty: bool,
     pub offset: Option<i64>,
+    pub microsec: u32,
 }
 
 impl TimeSpec {
-    pub fn new(hour: u32, min: u32, sec: u32) -> TimeSpec {
-        TimeSpec{hour, min, sec, empty: false, offset: None}
+    pub fn new(hour: u32, min: u32, sec: u32, microsec: u32) -> TimeSpec {
+        TimeSpec{hour, min, sec, empty: false, offset: None, microsec }
     }
 
-    pub fn new_with_offset(hour: u32, min: u32, sec: u32, offset: i64) -> TimeSpec {
-        TimeSpec{hour, min, sec, empty: false, offset: Some(offset)}
+    pub fn new_with_offset(hour: u32, min: u32, sec: u32, offset: i64, microsec: u32) -> TimeSpec {
+        TimeSpec{hour, min, sec, empty: false, offset: Some(offset), microsec }
     }
 
     pub fn new_empty() -> TimeSpec {
-        TimeSpec{hour: 0, min: 0, sec: 0, empty: true, offset: None}
+        TimeSpec{hour: 0, min: 0, sec: 0, empty: true, offset: None, microsec: 0 }
     }
 
     pub fn empty(&self) -> bool {
@@ -297,11 +298,11 @@ impl TimeSpec {
     }
 
     pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
-        let dt = d.and_hms_opt(self.hour, self.min, self.sec)?;
+        let dt = d.and_hms_micro(self.hour, self.min, self.sec, self.microsec);
         if let Some(offs) = self.offset {
             let zoffset = dt.offset().clone();
             let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
-            let nd = NaiveDateTime::from_timestamp(tstamp,0);
+            let nd = NaiveDateTime::from_timestamp(tstamp,1000*self.microsec);
             Some(DateTime::from_utc(nd, zoffset))
         } else {
             Some(dt)
