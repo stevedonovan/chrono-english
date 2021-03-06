@@ -217,7 +217,7 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
-        //println!("token {:?}", tnext);
+        println!("token {:?}", tnext);
         if tnext.is_none() {
             Ok(TimeSpec::new(hour,min,sec))
         } else
@@ -229,11 +229,14 @@ impl <'a> DateParser<'a> {
             };
             let offset = if expecting_offset {
                 let h = self.s.get_int::<u32>()?;
-                let m = if self.s.peek() == ':' {
+                let (h,m) = if self.s.peek() == ':' { // 02:00
                     self.s.nextch();
-                    self.s.get_int::<u32>()?
-                } else { // but what about 0030 etc?
-                    0
+                    (h,self.s.get_int::<u32>()?)
+                } else { // 0030 ....
+                    let hh = h;
+                    let h = hh / 100;
+                    let m = hh % 100;
+                    (h,m)
                 };
                 let res = 60*(m + 60*h);
                 (res as i64)*if ch == '-' {-1} else {1}

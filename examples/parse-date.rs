@@ -23,10 +23,13 @@ const FMT_ISO: &str = "%+";
 
 fn parse_and_compare<Tz: TimeZone>(datestr: &str, basestr: &str, now: DateTime<Tz>, dialect: Dialect) -> BoxResult<()>
 where Tz::Offset: Display, Tz::Offset: Copy {
+    let def = basestr == "now";
     let base = parse_date_string(basestr, now, dialect)?;
     let date_time = parse_date_string(&datestr, base, dialect)?;
-    println!("base {} ({})",base.format(FMT_C),base.format(FMT_ISO));
-    println!("calc {} ({})",date_time.format(FMT_C),date_time.format(FMT_ISO));
+    if ! def {
+        println!("base {} ({})", base.format(FMT_C), base.format(FMT_ISO));
+    }
+    println!("calc {} ({})", date_time.format(FMT_C), date_time.format(FMT_ISO));
     Ok(())
 }
 

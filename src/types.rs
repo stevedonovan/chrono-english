@@ -298,9 +298,16 @@ impl TimeSpec {
     }
 
     pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
-        d.and_hms_opt(self.hour, self.min, self.sec)
-
-        // FixedOffset::local_minus_utc
+        let dt = d.and_hms_opt(self.hour, self.min, self.sec)?;
+        if let Some(offs) = self.offset {
+            let zoffset = dt.offset().clone();
+            let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
+            eprintln!("offset {}", offs);
+            let nd = NaiveDateTime::from_timestamp(tstamp,0);
+            Some(DateTime::from_utc(nd, zoffset))
+        } else {
+            Some(dt)
+        }
     }
 }
 
