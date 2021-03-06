@@ -217,42 +217,42 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
-        println!("token {:?}", tnext);
         if tnext.is_none() {
             Ok(TimeSpec::new(hour,min,sec))
-        } else
-        if let Some(ch) = tnext.as_ref().unwrap().as_char() {
-            let expecting_offset = match ch {
-                '+' | '-' => true,
-                'Z' => false,
-                _ => return date_result("expected +/- or Z")
-            };
-            let offset = if expecting_offset {
-                let h = self.s.get_int::<u32>()?;
-                let (h,m) = if self.s.peek() == ':' { // 02:00
-                    self.s.nextch();
-                    (h,self.s.get_int::<u32>()?)
-                } else { // 0030 ....
-                    let hh = h;
-                    let h = hh / 100;
-                    let m = hh % 100;
-                    (h,m)
-                };
-                let res = 60*(m + 60*h);
-                (res as i64)*if ch == '-' {-1} else {1}
-            } else {
-                0
-            };
-            Ok(TimeSpec::new_with_offset(hour,min,sec,offset))
         } else {
-            // can only be am/pm
-            let hour = if let Some(t) = tnext {
-                let name = t.to_iden_result()?;
-                DateParser::am_pm(&name,hour)?
+            let tok = tnext.as_ref().unwrap();
+            if let Some(ch) = tok.as_char() {
+                let expecting_offset = match ch {
+                    '+' | '-' => true,
+                    _ => return date_result("expected +/- before timezone")
+                };
+                let offset = if expecting_offset {
+                    let h = self.s.get_int::<u32>()?;
+                    let (h, m) = if self.s.peek() == ':' { // 02:00
+                        self.s.nextch();
+                        (h, self.s.get_int::<u32>()?)
+                    } else { // 0030 ....
+                        let hh = h;
+                        let h = hh / 100;
+                        let m = hh % 100;
+                        (h, m)
+                    };
+                    let res = 60 * (m + 60 * h);
+                    (res as i64) * if ch == '-' { -1 } else { 1 }
+                } else {
+                    0
+                };
+                Ok(TimeSpec::new_with_offset(hour, min, sec, offset))
+            } else if let Some(id) = tok.as_iden() {
+                if id == "Z" {
+                    Ok(TimeSpec::new_with_offset(hour,min,sec,0))
+                } else { // am or pm
+                    let hour = DateParser::am_pm(&id, hour)?;
+                    Ok(TimeSpec::new(hour, min, sec))
+                }
             } else {
-                hour
-            };
-            Ok(TimeSpec::new(hour,min,sec))
+                Ok(TimeSpec::new(hour, min, sec))
+            }
         }
     }
 

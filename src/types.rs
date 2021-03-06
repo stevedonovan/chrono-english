@@ -216,7 +216,6 @@ impl Skip {
                     (y - pmm/12, 12 - pmm%12 + 1)
                 };
                 // let chrono work out if the result makes sense
-                //println!("{} {} {}",y,m,d);
                 let mut date = base.timezone().ymd_opt(y,m as u32,d).single();
                 // dud dates like Feb 30 may result, so we back off...
                 let mut d = d;
@@ -302,7 +301,6 @@ impl TimeSpec {
         if let Some(offs) = self.offset {
             let zoffset = dt.offset().clone();
             let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
-            eprintln!("offset {}", offs);
             let nd = NaiveDateTime::from_timestamp(tstamp,0);
             Some(DateTime::from_utc(nd, zoffset))
         } else {
