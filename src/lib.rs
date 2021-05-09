@@ -75,7 +75,7 @@ use errors::*;
 
 pub use errors::{DateResult,DateError};
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,Debug)]
 pub enum Dialect {
     Uk,
     Us
