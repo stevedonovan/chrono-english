@@ -1,5 +1,5 @@
 use chrono::prelude::*;
-use time::Duration;
+use chrono::Duration;
 
 // implements next/last direction in expressions like 'next friday' and 'last 4 july'
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -370,6 +370,3 @@ pub fn time_unit(s: &str) -> Option<Interval> {
         _ => return None
     })
 }
-
-
-
