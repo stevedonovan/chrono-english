@@ -15,7 +15,6 @@ license="MIT"
 [dependencies]
 chrono = "0.4"
 scanlex = "0.1.2"
-time = "0.1"
 
 [dev-dependencies]
 lapp = "0.3"
