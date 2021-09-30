@@ -337,8 +337,8 @@ pub fn month_name(s: &str) -> Option<u32> {
         "jul" => 7,
         "aug" => 8,
         "sep" => 9,
-        "nov" => 10,
-        "oct" => 11,
+        "oct" => 10,
+        "nov" => 11,
         "dec" => 12,
         _ => return None
     })
