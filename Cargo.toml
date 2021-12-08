@@ -13,9 +13,8 @@ readme = "readme.md"
 license="MIT"
 
 [dependencies]
-chrono = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["alloc", "clock"] }
 scanlex = "0.1.2"
-time = "0.1"
 
 [dev-dependencies]
 lapp = "0.3"
