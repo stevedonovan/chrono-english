@@ -1,14 +1,14 @@
 extern crate chrono_english;
-use chrono_english::{parse_date_string,Dialect};
+use chrono_english::{parse_date_string, Dialect};
 
 extern crate chrono;
 use chrono::prelude::*;
 
 extern crate lapp;
 
-use std::fmt::Display;
 use std::error::Error;
-type BoxResult<T> = Result<T,Box<dyn Error>>;
+use std::fmt::Display;
+type BoxResult<T> = Result<T, Box<dyn Error>>;
 
 const USAGE: &str = "
 Parsing Dates in English
@@ -21,15 +21,27 @@ Parsing Dates in English
 const FMT_C: &str = "%c %z";
 const FMT_ISO: &str = "%+";
 
-fn parse_and_compare<Tz: TimeZone>(datestr: &str, basestr: &str, now: DateTime<Tz>, dialect: Dialect) -> BoxResult<()>
-where Tz::Offset: Display, Tz::Offset: Copy {
+fn parse_and_compare<Tz: TimeZone>(
+    datestr: &str,
+    basestr: &str,
+    now: DateTime<Tz>,
+    dialect: Dialect,
+) -> BoxResult<()>
+where
+    Tz::Offset: Display,
+    Tz::Offset: Copy,
+{
     let def = basestr == "now";
     let base = parse_date_string(basestr, now, dialect)?;
     let date_time = parse_date_string(&datestr, base, dialect)?;
-    if ! def {
+    if !def {
         println!("base {} ({})", base.format(FMT_C), base.format(FMT_ISO));
     }
-    println!("calc {} ({})", date_time.format(FMT_C), date_time.format(FMT_ISO));
+    println!(
+        "calc {} ({})",
+        date_time.format(FMT_C),
+        date_time.format(FMT_ISO)
+    );
     Ok(())
 }
 
@@ -44,9 +56,9 @@ fn run() -> BoxResult<()> {
         Dialect::Uk
     };
     if utc {
-        parse_and_compare(&datestr,&basestr, Utc::now(), dialect)?;
+        parse_and_compare(&datestr, &basestr, Utc::now(), dialect)?;
     } else {
-        parse_and_compare(&datestr,&basestr, Local::now(), dialect)?;
+        parse_and_compare(&datestr, &basestr, Local::now(), dialect)?;
     }
 
     Ok(())
@@ -54,7 +66,7 @@ fn run() -> BoxResult<()> {
 
 fn main() {
     if let Err(e) = run() {
-        eprintln!("error: {}",e);
+        eprintln!("error: {}", e);
         std::process::exit(1);
     }
 }
