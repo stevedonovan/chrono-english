@@ -17,8 +17,8 @@ impl Error for DateError {}
 
 pub type DateResult<T> = Result<T,DateError>;
 
-pub fn date_error(msg: &str) -> DateError {
-    DateError{details: msg.into()}
+pub fn date_error(msg: impl ToString) -> DateError {
+    DateError{details: msg.to_string()}
 }
 
 pub fn date_result<T>(msg: &str) -> DateResult<T> {
@@ -27,7 +27,7 @@ pub fn date_result<T>(msg: &str) -> DateResult<T> {
 
 impl From<ScanError> for DateError {
     fn from(err: ScanError) -> DateError {
-        date_error(&err.to_string())
+        date_error(err)
     }
 }
 
