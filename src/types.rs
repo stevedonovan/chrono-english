@@ -166,12 +166,18 @@ impl AbsDate {
     }
 }
 
+/// A generic amount of time, in either seconds, days, or months.
+///
+/// This way, a user can decide how they want to treat days (which do
+/// not always have the same number of seconds) or months (which do not always
+/// have the same number of days).
+//
 // Skipping a given number of time units.
 // The subtlety is that we treat duration as seconds until we get
 // to months, where we want to preserve dates. So adding a month to
 // '5 May' gives '5 June'. Adding a month to '30 Jan' gives 'Feb 28' or 'Feb 29'
 // depending on whether this is a leap year.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Interval {
     Seconds(i32),
     Days(i32),
@@ -216,7 +222,6 @@ impl Skip {
                     (y - pmm/12, 12 - pmm%12 + 1)
                 };
                 // let chrono work out if the result makes sense
-                //println!("{} {} {}",y,m,d);
                 let mut date = base.timezone().ymd_opt(y,m as u32,d).single();
                 // dud dates like Feb 30 may result, so we back off...
                 let mut d = d;
@@ -231,6 +236,16 @@ impl Skip {
                 ts.to_date_time(date.unwrap())?
             },
         })
+    }
+
+    pub fn to_interval(self) -> Interval {
+        use Interval::*;
+
+        match self.unit {
+            Seconds(s) => Seconds(s * self.skip),
+            Days(d) => Days(d * self.skip),
+            Months(m) => Months(m * self.skip),
+        }
     }
 }
 
@@ -278,19 +293,20 @@ pub struct TimeSpec {
     pub sec: u32,
     pub empty: bool,
     pub offset: Option<i64>,
+    pub microsec: u32,
 }
 
 impl TimeSpec {
-    pub fn new(hour: u32, min: u32, sec: u32) -> TimeSpec {
-        TimeSpec{hour, min, sec, empty: false, offset: None}
+    pub fn new(hour: u32, min: u32, sec: u32, microsec: u32) -> TimeSpec {
+        TimeSpec{hour, min, sec, empty: false, offset: None, microsec }
     }
 
-    pub fn new_with_offset(hour: u32, min: u32, sec: u32, offset: i64) -> TimeSpec {
-        TimeSpec{hour, min, sec, empty: false, offset: Some(offset)}
+    pub fn new_with_offset(hour: u32, min: u32, sec: u32, offset: i64, microsec: u32) -> TimeSpec {
+        TimeSpec{hour, min, sec, empty: false, offset: Some(offset), microsec }
     }
 
     pub fn new_empty() -> TimeSpec {
-        TimeSpec{hour: 0, min: 0, sec: 0, empty: true, offset: None}
+        TimeSpec{hour: 0, min: 0, sec: 0, empty: true, offset: None, microsec: 0 }
     }
 
     pub fn empty(&self) -> bool {
@@ -298,9 +314,15 @@ impl TimeSpec {
     }
 
     pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
-        d.and_hms_opt(self.hour, self.min, self.sec)
-
-        // FixedOffset::local_minus_utc
+        let dt = d.and_hms_micro(self.hour, self.min, self.sec, self.microsec);
+        if let Some(offs) = self.offset {
+            let zoffset = dt.offset().clone();
+            let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
+            let nd = NaiveDateTime::from_timestamp(tstamp,1000*self.microsec);
+            Some(DateTime::from_utc(nd, zoffset))
+        } else {
+            Some(dt)
+        }
     }
 }
 
@@ -337,8 +359,8 @@ pub fn month_name(s: &str) -> Option<u32> {
         "jul" => 7,
         "aug" => 8,
         "sep" => 9,
-        "nov" => 10,
-        "oct" => 11,
+        "oct" => 10,
+        "nov" => 11,
         "dec" => 12,
         _ => return None
     })

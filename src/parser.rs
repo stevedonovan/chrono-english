@@ -217,39 +217,54 @@ impl <'a> DateParser<'a> {
         if tnext.is_none() {
             tnext = self.s.next();
         }
-        //println!("token {:?}", tnext);
+        let micros = if let Some(Some('.')) = tnext.as_ref().map(|t| t.as_char()) {
+            let frac = self.s.grab_while(char::is_numeric);
+            if frac.is_empty() {
+                return date_result("expected fractional second after '.'");
+            }
+            let frac = "0.".to_owned() + &frac;
+            let micros_f = frac.parse::<f64>().unwrap() * 1.0e6;
+            tnext = self.s.next();
+            micros_f as u32
+        } else {
+            0
+        };
         if tnext.is_none() {
-            Ok(TimeSpec::new(hour,min,sec))
-        } else
-        if let Some(ch) = tnext.as_ref().unwrap().as_char() {
-            let expecting_offset = match ch {
-                '+' | '-' => true,
-                'Z' => false,
-                _ => return date_result("expected +/- or Z")
-            };
-            let offset = if expecting_offset {
-                let h = self.s.get_int::<u32>()?;
-                let m = if self.s.peek() == ':' {
-                    self.s.nextch();
-                    self.s.get_int::<u32>()?
-                } else { // but what about 0030 etc?
+            Ok(TimeSpec::new(hour, min, sec, micros ))
+        } else {
+            let tok = tnext.as_ref().unwrap();
+            if let Some(ch) = tok.as_char() {
+                let expecting_offset = match ch {
+                    '+' | '-' => true,
+                    _ => return date_result("expected +/- before timezone")
+                };
+                let offset = if expecting_offset {
+                    let h = self.s.get_int::<u32>()?;
+                    let (h, m) = if self.s.peek() == ':' { // 02:00
+                        self.s.nextch();
+                        (h, self.s.get_int::<u32>()?)
+                    } else { // 0030 ....
+                        let hh = h;
+                        let h = hh / 100;
+                        let m = hh % 100;
+                        (h, m)
+                    };
+                    let res = 60 * (m + 60 * h);
+                    (res as i64) * if ch == '-' { -1 } else { 1 }
+                } else {
                     0
                 };
-                let res = 60*(m + 60*h);
-                (res as i64)*if ch == '-' {-1} else {1}
+                Ok(TimeSpec::new_with_offset(hour, min, sec, offset,micros))
+            } else if let Some(id) = tok.as_iden() {
+                if id == "Z" {
+                    Ok(TimeSpec::new_with_offset(hour,min,sec,0,micros))
+                } else { // am or pm
+                    let hour = DateParser::am_pm(&id, hour)?;
+                    Ok(TimeSpec::new(hour, min, sec, micros))
+                }
             } else {
-                0
-            };
-            Ok(TimeSpec::new_with_offset(hour,min,sec,offset))
-        } else {
-            // can only be am/pm
-            let hour = if let Some(t) = tnext {
-                let name = t.to_iden_result()?;
-                DateParser::am_pm(&name,hour)?
-            } else {
-                hour
-            };
-            Ok(TimeSpec::new(hour,min,sec))
+                Ok(TimeSpec::new(hour, min, sec, micros))
+            }
         }
     }
 
@@ -261,7 +276,7 @@ impl <'a> DateParser<'a> {
         } else {
             hour
         };
-        Ok(TimeSpec::new(hour,min,0))
+        Ok(TimeSpec::new(hour, min, 0, 0))
     }
 
     fn am_pm(name: &str, mut hour: u32) -> DateResult<u32> {
@@ -275,7 +290,7 @@ impl <'a> DateParser<'a> {
     }
 
     fn hour_time(name: &str, hour: u32) -> DateResult<TimeSpec> {
-        Ok(TimeSpec::new (DateParser::am_pm(name,hour)?,0,0))
+        Ok(TimeSpec::new (DateParser::am_pm(name, hour)?, 0, 0, 0))
     }
 
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {
@@ -307,7 +322,7 @@ impl <'a> DateParser<'a> {
                 return Ok(None);
             }
 
-            let mut hour = t.to_int_result::<u32>()?;
+            let hour = t.to_int_result::<u32>()?;
             Ok(Some(match self.s.get() {
                 Token::Char(ch) => match ch {
                     ':' => self.formal_time(hour)?,

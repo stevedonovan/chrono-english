@@ -1,6 +1,6 @@
 [package]
 name = "chrono-english"
-version = "0.1.4"
+version = "0.1.6"
 authors = ["steve donovan <steve.j.donovan@gmail.com>"]
 
 description = "parses simple English dates, inspired by Linux date command"

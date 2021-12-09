@@ -13,11 +13,7 @@ impl fmt::Display for DateError {
     }
 }
 
-impl Error for DateError {
-    fn description(&self) -> &str {
-        &self.details
-    }
-}
+impl Error for DateError {}
 
 pub type DateResult<T> = Result<T,DateError>;
 
@@ -31,7 +27,7 @@ pub fn date_result<T>(msg: &str) -> DateResult<T> {
 
 impl From<ScanError> for DateError {
     fn from(err: ScanError) -> DateError {
-        date_error(err.description())
+        date_error(&err.to_string())
     }
 }
 
