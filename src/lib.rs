@@ -73,7 +73,6 @@
 //!
 
 extern crate scanlex;
-extern crate time;
 extern crate chrono;
 use chrono::prelude::*;
 
