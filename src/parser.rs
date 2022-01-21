@@ -1,9 +1,9 @@
-use scanlex::{Scanner,Token};
 use errors::*;
+use scanlex::{Scanner, Token};
 use types::*;
 
 // when we parse dates, there's often a bit of time parsed..
-#[derive(Clone,Copy,Debug)]
+#[derive(Clone, Copy, Debug)]
 enum TimeKind {
     Formal,
     Informal,
@@ -14,18 +14,17 @@ enum TimeKind {
 pub struct DateParser<'a> {
     s: Scanner<'a>,
     direct: Direction,
-    maybe_time: Option<(u32,TimeKind)>,
+    maybe_time: Option<(u32, TimeKind)>,
     pub american: bool, // 9/11, not 20/03
 }
 
-impl <'a> DateParser<'a> {
-
+impl<'a> DateParser<'a> {
     pub fn new(text: &'a str) -> DateParser<'a> {
-        DateParser{
+        DateParser {
             s: Scanner::new(text).no_float(),
             direct: Direction::Here,
             maybe_time: None,
-            american: false
+            american: false,
         }
     }
 
@@ -38,12 +37,12 @@ impl <'a> DateParser<'a> {
         let month = self.s.get_int::<u32>()?;
         self.s.get_ch_matching(&['-'])?;
         let day = self.s.get_int::<u32>()?;
-        Ok(DateSpec::absolute(y,month,day))
+        Ok(DateSpec::absolute(y, month, day))
     }
 
     fn informal_date(&mut self, day_or_month: u32) -> DateResult<DateSpec> {
         let month_or_day = self.s.get_int::<u32>()?;
-        let (d,m) = if self.american {
+        let (d, m) = if self.american {
             (month_or_day, day_or_month)
         } else {
             (day_or_month, month_or_day)
@@ -51,7 +50,8 @@ impl <'a> DateParser<'a> {
         Ok(if self.s.peek() == '/' {
             self.s.get();
             let y = self.s.get_int::<u32>()?;
-            let y = if y < 100 { // pivot (1940, 2040)
+            let y = if y < 100 {
+                // pivot (1940, 2040)
                 if y > 40 {
                     1900 + y
                 } else {
@@ -60,9 +60,9 @@ impl <'a> DateParser<'a> {
             } else {
                 y
             };
-            DateSpec::absolute(y,m,d)
+            DateSpec::absolute(y, m, d)
         } else {
-            DateSpec::FromName(ByName::from_day_month(d,m,self.direct))
+            DateSpec::FromName(ByName::from_day_month(d, m, self.direct))
         })
     }
 
@@ -83,13 +83,12 @@ impl <'a> DateParser<'a> {
                 "today" => Some(0),
                 "yesterday" => Some(-1),
                 "tomorrow" => Some(1),
-                _ => None
+                _ => None,
             };
             if let Some(skip) = shortcut {
-                return Ok(Some(
-                    DateSpec::skip(time_unit("day").unwrap(), skip)
-                ));
-            } else // maybe next or last?
+                return Ok(Some(DateSpec::skip(time_unit("day").unwrap(), skip)));
+            } else
+            // maybe next or last?
             if let Some(d) = Direction::from_name(&name) {
                 self.direct = d;
             }
@@ -101,7 +100,7 @@ impl <'a> DateParser<'a> {
             Token::Iden(ref name) => {
                 let name = name.to_lowercase();
                 // maybe weekday or month name?
-                if let Some(by_name) = ByName::from_name(&name,self.direct) {
+                if let Some(by_name) = ByName::from_name(&name, self.direct) {
                     // however, MONTH _might_ be followed by DAY, YEAR
                     if let Some(month) = by_name.as_month() {
                         let t = self.s.get();
@@ -110,8 +109,9 @@ impl <'a> DateParser<'a> {
                             return Ok(Some(if self.s.peek() == ',' {
                                 self.s.get_char()?; // eat ','
                                 let year = self.s.get_int::<u32>()?;
-                                DateSpec::absolute(year,month,day)
-                            } else { // MONTH DAY is like DAY MONTH (tho no time!)
+                                DateSpec::absolute(year, month, day)
+                            } else {
+                                // MONTH DAY is like DAY MONTH (tho no time!)
                                 DateSpec::from_day_month(day, month, self.direct)
                             }));
                         }
@@ -120,12 +120,13 @@ impl <'a> DateParser<'a> {
                 } else {
                     return date_result("expected week day or month name");
                 }
-            },
+            }
             Token::Int(_) => {
                 let n = t.to_int_result::<u32>()?;
                 let t = self.s.get();
-                if t.finished() { // must be a year...
-                    return Ok(Some(DateSpec::absolute(n,1,1)));
+                if t.finished() {
+                    // must be a year...
+                    return Ok(Some(DateSpec::absolute(n, 1, 1)));
                 }
                 match t {
                     Token::Iden(ref name) => {
@@ -134,13 +135,13 @@ impl <'a> DateParser<'a> {
                         if let Some(month) = month_name(&name) {
                             if let Ok(year) = self.s.get_int::<u32>() {
                                 // 4 July 2017
-                                Some(DateSpec::absolute(year,month,day))
+                                Some(DateSpec::absolute(year, month, day))
                             } else {
                                 // 4 July
                                 Some(DateSpec::from_day_month(day, month, self.direct))
                             }
-                        } else
-                        if let Some(u) = time_unit(&name) { // '2 days'
+                        } else if let Some(u) = time_unit(&name) {
+                            // '2 days'
                             let mut n = n as i32;
                             if sign {
                                 n = -n;
@@ -156,44 +157,39 @@ impl <'a> DateParser<'a> {
                                 } else {
                                     false
                                 };
-                                if ! got_ago {
+                                if !got_ago {
                                     if let Some(h) = t.to_integer() {
                                         self.maybe_time = Some((h as u32, TimeKind::Unknown));
                                     }
                                 }
                             }
                             Some(DateSpec::skip(u, n))
-                        } else
-                        if name == "am" || name == "pm" {
+                        } else if name == "am" || name == "pm" {
                             self.maybe_time = Some((n, TimeKind::AmPm(name == "pm")));
                             None
                         } else {
                             return date_result("expected month or time unit");
                         }
-                    },
-                    Token::Char(ch) => {
-                        match ch {
-                            '-' => Some(self.iso_date(n)?),
-                            '/' => Some(self.informal_date(n)?),
-                            ':' | '.' => {
-                                let kind = if ch == ':' {
-                                    TimeKind::Formal
-                                } else {
-                                    TimeKind::Informal
-                                };
-                                self.maybe_time = Some((n,kind));
-                                None
-                            }
-                            _ => return date_result(&format!("unexpected char {:?}",ch)),
+                    }
+                    Token::Char(ch) => match ch {
+                        '-' => Some(self.iso_date(n)?),
+                        '/' => Some(self.informal_date(n)?),
+                        ':' | '.' => {
+                            let kind = if ch == ':' {
+                                TimeKind::Formal
+                            } else {
+                                TimeKind::Informal
+                            };
+                            self.maybe_time = Some((n, kind));
+                            None
                         }
+                        _ => return date_result(&format!("unexpected char {:?}", ch)),
                     },
-                    _ => return date_result(&format!("unexpected token {:?}",t)),
-
+                    _ => return date_result(&format!("unexpected token {:?}", t)),
                 }
-            },
-            _ => return date_result(&format!("not expected token {:?}",t)),
+            }
+            _ => return date_result(&format!("not expected token {:?}", t)),
         })
-
     }
 
     fn formal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
@@ -230,20 +226,22 @@ impl <'a> DateParser<'a> {
             0
         };
         if tnext.is_none() {
-            Ok(TimeSpec::new(hour, min, sec, micros ))
+            Ok(TimeSpec::new(hour, min, sec, micros))
         } else {
             let tok = tnext.as_ref().unwrap();
             if let Some(ch) = tok.as_char() {
                 let expecting_offset = match ch {
                     '+' | '-' => true,
-                    _ => return date_result("expected +/- before timezone")
+                    _ => return date_result("expected +/- before timezone"),
                 };
                 let offset = if expecting_offset {
                     let h = self.s.get_int::<u32>()?;
-                    let (h, m) = if self.s.peek() == ':' { // 02:00
+                    let (h, m) = if self.s.peek() == ':' {
+                        // 02:00
                         self.s.nextch();
                         (h, self.s.get_int::<u32>()?)
-                    } else { // 0030 ....
+                    } else {
+                        // 0030 ....
                         let hh = h;
                         let h = hh / 100;
                         let m = hh % 100;
@@ -254,11 +252,12 @@ impl <'a> DateParser<'a> {
                 } else {
                     0
                 };
-                Ok(TimeSpec::new_with_offset(hour, min, sec, offset,micros))
+                Ok(TimeSpec::new_with_offset(hour, min, sec, offset, micros))
             } else if let Some(id) = tok.as_iden() {
                 if id == "Z" {
-                    Ok(TimeSpec::new_with_offset(hour,min,sec,0,micros))
-                } else { // am or pm
+                    Ok(TimeSpec::new_with_offset(hour, min, sec, 0, micros))
+                } else {
+                    // am or pm
                     let hour = DateParser::am_pm(&id, hour)?;
                     Ok(TimeSpec::new(hour, min, sec, micros))
                 }
@@ -272,7 +271,7 @@ impl <'a> DateParser<'a> {
         let min = self.s.get_int::<u32>()?;
         let hour = if let Some(t) = self.s.next() {
             let name = t.to_iden_result()?;
-            DateParser::am_pm(&name,hour)?
+            DateParser::am_pm(&name, hour)?
         } else {
             hour
         };
@@ -282,21 +281,21 @@ impl <'a> DateParser<'a> {
     fn am_pm(name: &str, mut hour: u32) -> DateResult<u32> {
         if name == "pm" {
             hour += 12;
-        } else
-        if name != "am" {
+        } else if name != "am" {
             return date_result("expected am or pm");
         }
         Ok(hour)
     }
 
     fn hour_time(name: &str, hour: u32) -> DateResult<TimeSpec> {
-        Ok(TimeSpec::new (DateParser::am_pm(name, hour)?, 0, 0, 0))
+        Ok(TimeSpec::new(DateParser::am_pm(name, hour)?, 0, 0, 0))
     }
 
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {
         // here the date parser looked ahead and saw an hour followed by some separator
-        if let Some(hour_sep) = self.maybe_time { // didn't see a separator, so look...
-            let (h,mut kind) = hour_sep;
+        if let Some(hour_sep) = self.maybe_time {
+            // didn't see a separator, so look...
+            let (h, mut kind) = hour_sep;
             if let TimeKind::Unknown = kind {
                 kind = match self.s.get_char()? {
                     ':' => TimeKind::Formal,
@@ -304,16 +303,14 @@ impl <'a> DateParser<'a> {
                     ch => return date_result(&format!("expected : or ., not {}", ch)),
                 };
             }
-            Ok(Some(
-                match kind {
-                    TimeKind::Formal => self.formal_time(h)?,
-                    TimeKind::Informal => self.informal_time(h)?,
-                    TimeKind::AmPm(is_pm) =>
-                        DateParser::hour_time(if is_pm {"pm"} else {"am"},h)?,
-                    TimeKind::Unknown => unreachable!(),
-                }
-            ))
-        } else { // no lookahead...
+            Ok(Some(match kind {
+                TimeKind::Formal => self.formal_time(h)?,
+                TimeKind::Informal => self.informal_time(h)?,
+                TimeKind::AmPm(is_pm) => DateParser::hour_time(if is_pm { "pm" } else { "am" }, h)?,
+                TimeKind::Unknown => unreachable!(),
+            }))
+        } else {
+            // no lookahead...
             if self.s.peek() == 'T' {
                 self.s.nextch();
             }
@@ -327,12 +324,10 @@ impl <'a> DateParser<'a> {
                 Token::Char(ch) => match ch {
                     ':' => self.formal_time(hour)?,
                     '.' => self.informal_time(hour)?,
-                    ch => return date_result(&format!("unexpected char {:?}",ch))
+                    ch => return date_result(&format!("unexpected char {:?}", ch)),
                 },
-                Token::Iden(name) => {
-                    DateParser::hour_time(&name,hour)?
-                }
-                t => return date_result(&format!("unexpected token {:?}",t))
+                Token::Iden(name) => DateParser::hour_time(&name, hour)?,
+                t => return date_result(&format!("unexpected token {:?}", t)),
             }))
         }
     }
@@ -340,7 +335,9 @@ impl <'a> DateParser<'a> {
     pub fn parse(&mut self) -> DateResult<DateTimeSpec> {
         let date = self.parse_date()?;
         let time = self.parse_time()?;
-        Ok(DateTimeSpec{date: date, time: time})
+        Ok(DateTimeSpec {
+            date: date,
+            time: time,
+        })
     }
-
 }
