@@ -86,7 +86,7 @@ pub use errors::{date_error, date_result};
 pub use errors::{DateError, DateResult};
 pub use types::Interval;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug, Hash, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Dialect {
     Uk,
     Us,

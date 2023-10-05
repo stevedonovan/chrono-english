@@ -2,7 +2,7 @@ use scanlex::ScanError;
 use std::error::Error;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DateError {
     details: String,
 }

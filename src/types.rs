@@ -197,7 +197,7 @@ impl AbsDate {
 // to months, where we want to preserve dates. So adding a month to
 // '5 May' gives '5 June'. Adding a month to '30 Jan' gives 'Feb 28' or 'Feb 29'
 // depending on whether this is a leap year.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Hash, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Interval {
     Seconds(i32),
     Days(i32),
