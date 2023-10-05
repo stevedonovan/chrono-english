@@ -82,6 +82,7 @@ mod types;
 use errors::*;
 use types::*;
 
+pub use errors::{date_error, date_result};
 pub use errors::{DateError, DateResult};
 pub use types::Interval;
 
