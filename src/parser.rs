@@ -234,21 +234,31 @@ impl<'a> DateParser<'a> {
                     '+' | '-' => true,
                     _ => return date_result("expected +/- before timezone"),
                 };
+
                 let offset = if expecting_offset {
-                    let h = self.scanner.get_int::<u32>()?;
-                    let (h, m) = if self.scanner.peek() == ':' {
+                    let hour_and_minute = self.scanner.get_int::<u32>()?;
+                    let (hour, minute) = if self.scanner.peek() == ':' {
                         // 02:00
                         self.scanner.nextch();
-                        (h, self.scanner.get_int::<u32>()?)
+                        (hour_and_minute, self.scanner.get_int::<u32>()?)
                     } else {
-                        // 0030 ....
-                        let hh = h;
-                        let h = hh / 100;
-                        let m = hh % 100;
-                        (h, m)
+                        // Parse 0230 statements.
+                        // -> 0230 / 100 -> 02
+                        // -> 0230 % 100 -> 30
+                        let hour = hour_and_minute / 100;
+                        let minute = hour_and_minute % 100;
+                        (hour, minute)
                     };
-                    let res = 60 * (m + 60 * h);
-                    (res as i64) * if ch == '-' { -1 } else { 1 }
+
+                    // Convert to i64, as we might deal with signed times.
+                    let res: i64 = (60 * (minute + 60 * hour)).into();
+
+                    // Apply sign.
+                    if ch == '-' {
+                        -res
+                    } else {
+                        res
+                    }
                 } else {
                     0
                 };
@@ -295,7 +305,7 @@ impl<'a> DateParser<'a> {
         // here the date parser looked ahead and saw an hour followed by some separator
         if let Some(hour_sep) = self.maybe_time {
             // didn't see a separator, so look...
-            let (h, mut kind) = hour_sep;
+            let (hour, mut kind) = hour_sep;
             if let TimeKind::Unknown = kind {
                 kind = match self.scanner.get_char()? {
                     ':' => TimeKind::Formal,
@@ -304,9 +314,11 @@ impl<'a> DateParser<'a> {
                 };
             }
             Ok(Some(match kind {
-                TimeKind::Formal => self.formal_time(h)?,
-                TimeKind::Informal => self.informal_time(h)?,
-                TimeKind::AmPm(is_pm) => DateParser::hour_time(if is_pm { "pm" } else { "am" }, h)?,
+                TimeKind::Formal => self.formal_time(hour)?,
+                TimeKind::Informal => self.informal_time(hour)?,
+                TimeKind::AmPm(is_pm) => {
+                    DateParser::hour_time(if is_pm { "pm" } else { "am" }, hour)?
+                }
                 TimeKind::Unknown => unreachable!(),
             }))
         } else {
