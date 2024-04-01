@@ -37,10 +37,7 @@ pub struct NamedDate {
 
 impl NamedDate {
     pub fn new(direct: Direction, unit: u32) -> NamedDate {
-        NamedDate {
-            direct: direct,
-            unit: unit,
-        }
+        NamedDate { direct, unit }
     }
 }
 
@@ -64,10 +61,8 @@ fn next_last_direction<T: PartialOrd + Copy>(date: T, base: T, direct: Direction
         if direct == Direction::Last {
             res = Some(-1);
         }
-    } else if date < base {
-        if direct == Direction::Next {
-            res = Some(1)
-        }
+    } else if date < base && direct == Direction::Next {
+        res = Some(1)
     }
     res
 }
@@ -90,12 +85,8 @@ impl ByName {
         }
     }
 
-    pub fn from_day_month(d: u32, m: u32, direct: Direction) -> ByName {
-        ByName::DayMonth(YearDate {
-            direct: direct,
-            day: d,
-            month: m,
-        })
+    pub fn from_day_month(day: u32, month: u32, direct: Direction) -> ByName {
+        ByName::DayMonth(YearDate { direct, day, month })
     }
 
     pub fn to_date_time<Tz: TimeZone>(
@@ -233,29 +224,29 @@ impl Skip {
                 }
             }
             Interval::Months(mm) => {
-                let (y, m0, d) = (base.year(), (base.month() - 1) as i32, base.day());
+                let (year, month, mut day) = (base.year(), (base.month() - 1) as i32, base.day());
                 let delta = mm * self.skip;
-                // our new month number
-                let mm = m0 + delta;
-                // which may run over to the next year and so forth
-                let (y, m) = if mm >= 0 {
-                    (y + mm / 12, mm % 12 + 1)
+                // Our new month number
+                let month = month + delta;
+                // Which may run over to the next year and so forth
+                let (year, month) = if month >= 0 {
+                    (year + month / 12, month % 12 + 1)
                 } else {
-                    let pmm = 12 - mm;
-                    (y - pmm / 12, 12 - pmm % 12 + 1)
+                    // TODO: What the heck is pmm?
+                    let pmm = 12 - month;
+                    (year - pmm / 12, 12 - pmm % 12 + 1)
                 };
                 // let chrono work out if the result makes sense
-                let mut date = base.timezone().ymd_opt(y, m as u32, d).single();
+                let mut date = base.timezone().ymd_opt(year, month as u32, day).single();
                 // dud dates like Feb 30 may result, so we back off...
-                let mut d = d;
                 while date.is_none() {
-                    d -= 1;
-                    if d == 0 || d < 28 {
+                    day -= 1;
+                    if day == 0 || day < 28 {
                         // sanity check...
                         eprintln!("fkd date");
                         return None;
                     }
-                    date = base.timezone().ymd_opt(y, m as u32, d).single();
+                    date = base.timezone().ymd_opt(year, month as u32, day).single();
                 }
                 ts.to_date_time(date.unwrap())?
             }
@@ -281,23 +272,20 @@ pub enum DateSpec {
 }
 
 impl DateSpec {
-    pub fn absolute(y: u32, m: u32, d: u32) -> DateSpec {
+    pub fn absolute(year: u32, month: u32, day: u32) -> DateSpec {
         DateSpec::Absolute(AbsDate {
-            year: y as i32,
-            month: m,
-            day: d,
+            year: year as i32,
+            month,
+            day,
         })
     }
 
-    pub fn from_day_month(d: u32, m: u32, direct: Direction) -> DateSpec {
-        DateSpec::FromName(ByName::from_day_month(d, m, direct))
+    pub fn from_day_month(day: u32, month: u32, direct: Direction) -> DateSpec {
+        DateSpec::FromName(ByName::from_day_month(day, month, direct))
     }
 
-    pub fn skip(unit: Interval, n: i32) -> DateSpec {
-        DateSpec::Relative(Skip {
-            unit: unit,
-            skip: n,
-        })
+    pub fn skip(unit: Interval, skip: i32) -> DateSpec {
+        DateSpec::Relative(Skip { unit, skip })
     }
 
     pub fn to_date_time<Tz: TimeZone>(
@@ -366,8 +354,8 @@ impl TimeSpec {
         self.empty
     }
 
-    pub fn to_date_time<Tz: TimeZone>(self, d: Date<Tz>) -> Option<DateTime<Tz>> {
-        let dt = d.and_hms_micro(self.hour, self.min, self.sec, self.microsec);
+    pub fn to_date_time<Tz: TimeZone>(self, date: Date<Tz>) -> Option<DateTime<Tz>> {
+        let dt = date.and_hms_micro(self.hour, self.min, self.sec, self.microsec);
         if let Some(offs) = self.offset {
             let zoffset = dt.offset().clone();
             let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;

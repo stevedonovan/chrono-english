@@ -12,7 +12,7 @@ enum TimeKind {
 }
 
 pub struct DateParser<'a> {
-    s: Scanner<'a>,
+    scanner: Scanner<'a>,
     direct: Direction,
     maybe_time: Option<(u32, TimeKind)>,
     pub american: bool, // 9/11, not 20/03
@@ -21,7 +21,7 @@ pub struct DateParser<'a> {
 impl<'a> DateParser<'a> {
     pub fn new(text: &'a str) -> DateParser<'a> {
         DateParser {
-            s: Scanner::new(text).no_float(),
+            scanner: Scanner::new(text).no_float(),
             direct: Direction::Here,
             maybe_time: None,
             american: false,
@@ -33,23 +33,23 @@ impl<'a> DateParser<'a> {
         self
     }
 
-    fn iso_date(&mut self, y: u32) -> DateResult<DateSpec> {
-        let month = self.s.get_int::<u32>()?;
-        self.s.get_ch_matching(&['-'])?;
-        let day = self.s.get_int::<u32>()?;
-        Ok(DateSpec::absolute(y, month, day))
+    fn iso_date(&mut self, year: u32) -> DateResult<DateSpec> {
+        let month = self.scanner.get_int::<u32>()?;
+        self.scanner.get_ch_matching(&['-'])?;
+        let day = self.scanner.get_int::<u32>()?;
+        Ok(DateSpec::absolute(year, month, day))
     }
 
     fn informal_date(&mut self, day_or_month: u32) -> DateResult<DateSpec> {
-        let month_or_day = self.s.get_int::<u32>()?;
-        let (d, m) = if self.american {
+        let month_or_day = self.scanner.get_int::<u32>()?;
+        let (day, month) = if self.american {
             (month_or_day, day_or_month)
         } else {
             (day_or_month, month_or_day)
         };
-        Ok(if self.s.peek() == '/' {
-            self.s.get();
-            let y = self.s.get_int::<u32>()?;
+        Ok(if self.scanner.peek() == '/' {
+            self.scanner.get();
+            let y = self.scanner.get_int::<u32>()?;
             let y = if y < 100 {
                 // pivot (1940, 2040)
                 if y > 40 {
@@ -60,14 +60,14 @@ impl<'a> DateParser<'a> {
             } else {
                 y
             };
-            DateSpec::absolute(y, m, d)
+            DateSpec::absolute(y, month, day)
         } else {
-            DateSpec::FromName(ByName::from_day_month(d, m, self.direct))
+            DateSpec::FromName(ByName::from_day_month(day, month, self.direct))
         })
     }
 
     fn parse_date(&mut self) -> DateResult<Option<DateSpec>> {
-        let mut t = self.s.next().or_err("empty date string")?;
+        let mut t = self.scanner.next().or_err("empty date string")?;
 
         let sign = if t.is_char() && t.as_char().unwrap() == '-' {
             true
@@ -75,7 +75,7 @@ impl<'a> DateParser<'a> {
             false
         };
         if sign {
-            t = self.s.next().or_err("nothing after '-'")?;
+            t = self.scanner.next().or_err("nothing after '-'")?;
         }
         if let Some(name) = t.as_iden() {
             let shortcut = match name {
@@ -94,7 +94,7 @@ impl<'a> DateParser<'a> {
             }
         }
         if self.direct != Direction::Here {
-            t = self.s.next().or_err("nothing after last/next")?;
+            t = self.scanner.next().or_err("nothing after last/next")?;
         }
         Ok(match t {
             Token::Iden(ref name) => {
@@ -103,12 +103,12 @@ impl<'a> DateParser<'a> {
                 if let Some(by_name) = ByName::from_name(&name, self.direct) {
                     // however, MONTH _might_ be followed by DAY, YEAR
                     if let Some(month) = by_name.as_month() {
-                        let t = self.s.get();
+                        let t = self.scanner.get();
                         if t.is_integer() {
                             let day = t.to_int_result::<u32>()?;
-                            return Ok(Some(if self.s.peek() == ',' {
-                                self.s.get_char()?; // eat ','
-                                let year = self.s.get_int::<u32>()?;
+                            return Ok(Some(if self.scanner.peek() == ',' {
+                                self.scanner.get_char()?; // eat ','
+                                let year = self.scanner.get_int::<u32>()?;
                                 DateSpec::absolute(year, month, day)
                             } else {
                                 // MONTH DAY is like DAY MONTH (tho no time!)
@@ -123,7 +123,7 @@ impl<'a> DateParser<'a> {
             }
             Token::Int(_) => {
                 let n = t.to_int_result::<u32>()?;
-                let t = self.s.get();
+                let t = self.scanner.get();
                 if t.finished() {
                     // must be a year...
                     return Ok(Some(DateSpec::absolute(n, 1, 1)));
@@ -133,7 +133,7 @@ impl<'a> DateParser<'a> {
                         let day = n;
                         let name = name.to_lowercase();
                         if let Some(month) = month_name(&name) {
-                            if let Ok(year) = self.s.get_int::<u32>() {
+                            if let Ok(year) = self.scanner.get_int::<u32>() {
                                 // 4 July 2017
                                 Some(DateSpec::absolute(year, month, day))
                             } else {
@@ -146,7 +146,7 @@ impl<'a> DateParser<'a> {
                             if sign {
                                 n = -n;
                             } else {
-                                let t = self.s.get();
+                                let t = self.scanner.get();
                                 let got_ago = if let Some(name) = t.as_iden() {
                                     if name == "ago" {
                                         n = -n;
@@ -193,15 +193,15 @@ impl<'a> DateParser<'a> {
     }
 
     fn formal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
-        let min = self.s.get_int::<u32>()?;
+        let min = self.scanner.get_int::<u32>()?;
         // minute may be followed by [:secs][am|pm]
         let mut tnext = None;
-        let sec = if let Some(t) = self.s.next() {
+        let sec = if let Some(t) = self.scanner.next() {
             if let Some(ch) = t.as_char() {
                 if ch != ':' {
                     return date_result("expecting ':'");
                 }
-                self.s.get_int::<u32>()?
+                self.scanner.get_int::<u32>()?
             } else {
                 tnext = Some(t);
                 0
@@ -211,16 +211,16 @@ impl<'a> DateParser<'a> {
         };
         // we found seconds, look ahead
         if tnext.is_none() {
-            tnext = self.s.next();
+            tnext = self.scanner.next();
         }
         let micros = if let Some(Some('.')) = tnext.as_ref().map(|t| t.as_char()) {
-            let frac = self.s.grab_while(char::is_numeric);
+            let frac = self.scanner.grab_while(char::is_numeric);
             if frac.is_empty() {
                 return date_result("expected fractional second after '.'");
             }
             let frac = "0.".to_owned() + &frac;
             let micros_f = frac.parse::<f64>().unwrap() * 1.0e6;
-            tnext = self.s.next();
+            tnext = self.scanner.next();
             micros_f as u32
         } else {
             0
@@ -235,11 +235,11 @@ impl<'a> DateParser<'a> {
                     _ => return date_result("expected +/- before timezone"),
                 };
                 let offset = if expecting_offset {
-                    let h = self.s.get_int::<u32>()?;
-                    let (h, m) = if self.s.peek() == ':' {
+                    let h = self.scanner.get_int::<u32>()?;
+                    let (h, m) = if self.scanner.peek() == ':' {
                         // 02:00
-                        self.s.nextch();
-                        (h, self.s.get_int::<u32>()?)
+                        self.scanner.nextch();
+                        (h, self.scanner.get_int::<u32>()?)
                     } else {
                         // 0030 ....
                         let hh = h;
@@ -268,8 +268,8 @@ impl<'a> DateParser<'a> {
     }
 
     fn informal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
-        let min = self.s.get_int::<u32>()?;
-        let hour = if let Some(t) = self.s.next() {
+        let min = self.scanner.get_int::<u32>()?;
+        let hour = if let Some(t) = self.scanner.next() {
             let name = t.to_iden_result()?;
             DateParser::am_pm(&name, hour)?
         } else {
@@ -297,7 +297,7 @@ impl<'a> DateParser<'a> {
             // didn't see a separator, so look...
             let (h, mut kind) = hour_sep;
             if let TimeKind::Unknown = kind {
-                kind = match self.s.get_char()? {
+                kind = match self.scanner.get_char()? {
                     ':' => TimeKind::Formal,
                     '.' => TimeKind::Informal,
                     ch => return date_result(&format!("expected : or ., not {}", ch)),
@@ -311,16 +311,16 @@ impl<'a> DateParser<'a> {
             }))
         } else {
             // no lookahead...
-            if self.s.peek() == 'T' {
-                self.s.nextch();
+            if self.scanner.peek() == 'T' {
+                self.scanner.nextch();
             }
-            let t = self.s.get();
+            let t = self.scanner.get();
             if t.finished() {
                 return Ok(None);
             }
 
             let hour = t.to_int_result::<u32>()?;
-            Ok(Some(match self.s.get() {
+            Ok(Some(match self.scanner.get() {
                 Token::Char(ch) => match ch {
                     ':' => self.formal_time(hour)?,
                     '.' => self.informal_time(hour)?,
@@ -335,9 +335,6 @@ impl<'a> DateParser<'a> {
     pub fn parse(&mut self) -> DateResult<DateTimeSpec> {
         let date = self.parse_date()?;
         let time = self.parse_time()?;
-        Ok(DateTimeSpec {
-            date: date,
-            time: time,
-        })
+        Ok(DateTimeSpec { date, time })
     }
 }
