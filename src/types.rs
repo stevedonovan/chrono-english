@@ -55,7 +55,7 @@ fn add_days<Tz: TimeZone>(base: DateTime<Tz>, days: i64) -> Option<DateTime<Tz>>
 
 //fn next_last_direction<Tz: TimeZone>(date: Date<Tz>, base: Date<Tz>, direct: Direction) -> Option<i32> {
 
-fn next_last_direction<T: PartialOrd + Copy>(date: T, base: T, direct: Direction) -> Option<i32> {
+fn next_last_direction<T: PartialOrd>(date: &T, base: &T, direct: Direction) -> Option<i32> {
     let mut res = None;
     if date > base {
         if direct == Direction::Last {
@@ -118,8 +118,8 @@ impl ByName {
                 let this_day = base.weekday().num_days_from_monday() as i64;
                 let that_day = nd.unit as i64;
                 let diff_days = that_day - this_day;
-                let mut date = add_days(base, diff_days)?;
-                if let Some(correct) = next_last_direction(date, base, nd.direct) {
+                let mut date = add_days(base.clone(), diff_days)?;
+                if let Some(correct) = next_last_direction(&date, &base, nd.direct) {
                     date = add_days(date, 7 * correct as i64)?;
                 }
                 if extra_week > 0 {
@@ -129,7 +129,7 @@ impl ByName {
                     // same day - comparing times will determine which way we swing...
                     let base_time = base.time();
                     let this_time = NaiveTime::from_hms(ts.hour, ts.min, ts.sec);
-                    if let Some(correct) = next_last_direction(this_time, base_time, nd.direct) {
+                    if let Some(correct) = next_last_direction(&this_time, &base_time, nd.direct) {
                         date = add_days(date, 7 * correct as i64)?;
                     }
                 }
@@ -137,7 +137,7 @@ impl ByName {
             }
             ByName::MonthName(nd) => {
                 let mut date = base.timezone().ymd_opt(this_year, nd.unit, 1).single()?;
-                if let Some(correct) = next_last_direction(date, base.date(), nd.direct) {
+                if let Some(correct) = next_last_direction(&date, &base.date(), nd.direct) {
                     date = base
                         .timezone()
                         .ymd_opt(this_year + correct, nd.unit, 1)
@@ -150,7 +150,7 @@ impl ByName {
                     .timezone()
                     .ymd_opt(this_year, yd.month, yd.day)
                     .single()?;
-                if let Some(correct) = next_last_direction(date, base.date(), yd.direct) {
+                if let Some(correct) = next_last_direction(&date, &base.date(), yd.direct) {
                     date = base
                         .timezone()
                         .ymd_opt(this_year + correct, yd.month, yd.day)

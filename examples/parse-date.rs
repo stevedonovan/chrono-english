@@ -33,7 +33,7 @@ where
 {
     let def = basestr == "now";
     let base = parse_date_string(basestr, now, dialect)?;
-    let date_time = parse_date_string(&datestr, base, dialect)?;
+    let date_time = parse_date_string(&datestr, base.clone(), dialect)?;
     if !def {
         println!("base {} ({})", base.format(FMT_C), base.format(FMT_ISO));
     }
