@@ -289,12 +289,13 @@ impl<'a> DateParser<'a> {
     }
 
     fn am_pm(name: &str, mut hour: u32) -> DateResult<u32> {
-        if name == "pm" {
-            hour += 12;
-        } else if name != "am" {
-            return date_result("expected am or pm");
+        match name {
+            "am" if hour == 12 => Ok(0),
+            "am" => Ok(hour),
+            "pm" if hour == 12 => Ok(12),
+            "pm" => Ok(hour + 12),
+            _ => date_result("expected am or pm"),
         }
-        Ok(hour)
     }
 
     fn hour_time(name: &str, hour: u32) -> DateResult<TimeSpec> {
