@@ -72,27 +72,34 @@
 //! ```
 //!
 
-extern crate scanlex;
 extern crate chrono;
+extern crate scanlex;
 use chrono::prelude::*;
 
-mod parser;
 mod errors;
+mod parser;
 mod types;
-use types::*;
 use errors::*;
+use types::*;
 
-pub use errors::{DateResult,DateError};
+pub use errors::{date_error, date_result};
+pub use errors::{DateError, DateResult};
 pub use types::Interval;
 
-#[derive(Clone,Copy,Debug)]
+#[derive(Debug, Hash, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Dialect {
     Uk,
-    Us
+    Us,
 }
 
-pub fn parse_date_string<Tz: TimeZone>(s: &str, now: DateTime<Tz>, dialect: Dialect) -> DateResult<DateTime<Tz>>
-where Tz::Offset: Copy {
+pub fn parse_date_string<Tz: TimeZone>(
+    s: &str,
+    now: DateTime<Tz>,
+    dialect: Dialect,
+) -> DateResult<DateTime<Tz>>
+where
+    Tz::Offset: Copy,
+{
     let mut dp = parser::DateParser::new(s);
     if let Dialect::Us = dialect {
         dp = dp.american_date();
@@ -105,11 +112,14 @@ where Tz::Offset: Copy {
         None => TimeSpec::new_empty(),
     };
     if tspec.offset.is_some() {
-     //   return DateTime::fix()::parse_from_rfc3339(s);
+        //   return DateTime::fix()::parse_from_rfc3339(s);
     }
     let date_time = if let Some(dspec) = d.date {
-        dspec.to_date_time(now,tspec,dp.american).or_err("bad date")?
-    } else { // no date, time set for today's date
+        dspec
+            .to_date_time(now, tspec, dp.american)
+            .or_err("bad date")?
+    } else {
+        // no date, time set for today's date
         tspec.to_date_time(now.date()).or_err("bad time")?
     };
     Ok(date_time)
@@ -147,62 +157,173 @@ mod tests {
 
     #[test]
     fn basics() {
-        let base = parse_date_string("2018-03-21 11:00",Utc::now(),Dialect::Uk).unwrap();
+        let base = parse_date_string("2018-03-21 11:00", Utc::now(), Dialect::Uk).unwrap();
 
         // Day of week - relative to today. May have a time part
-        assert_eq!(display(parse_date_string("friday",base,Dialect::Uk)),"2018-03-23T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("friday 10:30",base,Dialect::Uk)),"2018-03-23T10:30:00+00:00");
-        assert_eq!(display(parse_date_string("friday 8pm",base,Dialect::Uk)),"2018-03-23T20:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("friday", base, Dialect::Uk)),
+            "2018-03-23T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("friday 10:30", base, Dialect::Uk)),
+            "2018-03-23T10:30:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("friday 8pm", base, Dialect::Uk)),
+            "2018-03-23T20:00:00+00:00"
+        );
 
         // The day of week is the _next_ day after today, so "Tuesday" is the next Tuesday after Wednesday
-        assert_eq!(display(parse_date_string("tues",base,Dialect::Uk)),"2018-03-27T00:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("tues", base, Dialect::Uk)),
+            "2018-03-27T00:00:00+00:00"
+        );
 
         // The expression 'next Monday' is ambiguous; in the US it means the day following (same as 'Monday')
         // (This is how the `date` command interprets it)
-        assert_eq!(display(parse_date_string("next mon",base,Dialect::Us)),"2018-03-26T00:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("next mon", base, Dialect::Us)),
+            "2018-03-26T00:00:00+00:00"
+        );
         // but otherwise it means the day in the next week..
-        assert_eq!(display(parse_date_string("next mon",base,Dialect::Uk)),"2018-04-02T00:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("next mon", base, Dialect::Uk)),
+            "2018-04-02T00:00:00+00:00"
+        );
 
-        assert_eq!(display(parse_date_string("last fri 9.30",base,Dialect::Uk)),"2018-03-16T09:30:00+00:00");
+        assert_eq!(
+            display(parse_date_string("last fri 9.30", base, Dialect::Uk)),
+            "2018-03-16T09:30:00+00:00"
+        );
 
         // date expressed as month, day - relative to today. May have a time part
-        assert_eq!(display(parse_date_string("9/11",base,Dialect::Us)),"2018-09-11T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("last 9/11",base,Dialect::Us)),"2017-09-11T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("last 9/11 9am",base,Dialect::Us)),"2017-09-11T09:00:00+00:00");
-        assert_eq!(display(parse_date_string("April 1 8.30pm",base,Dialect::Uk)),"2018-04-01T20:30:00+00:00");
+        assert_eq!(
+            display(parse_date_string("9/11", base, Dialect::Us)),
+            "2018-09-11T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("last 9/11", base, Dialect::Us)),
+            "2017-09-11T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("last 9/11 9am", base, Dialect::Us)),
+            "2017-09-11T09:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("April 1 8.30pm", base, Dialect::Uk)),
+            "2018-04-01T20:30:00+00:00"
+        );
 
         // advance by time unit from today
         // without explicit time, use base time - otherwise override
-        assert_eq!(display(parse_date_string("2d",base,Dialect::Uk)),"2018-03-23T11:00:00+00:00");
-        assert_eq!(display(parse_date_string("2d 03:00",base,Dialect::Uk)),"2018-03-23T03:00:00+00:00");
-        assert_eq!(display(parse_date_string("3 weeks",base,Dialect::Uk)),"2018-04-11T11:00:00+00:00");
-        assert_eq!(display(parse_date_string("3h",base,Dialect::Uk)),"2018-03-21T14:00:00+00:00");
-        assert_eq!(display(parse_date_string("6 months",base,Dialect::Uk)),"2018-09-21T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("6 months ago",base,Dialect::Uk)),"2017-09-21T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("3 hours ago",base,Dialect::Uk)),"2018-03-21T08:00:00+00:00");
-        assert_eq!(display(parse_date_string(" -3h",base,Dialect::Uk)),"2018-03-21T08:00:00+00:00");
-        assert_eq!(display(parse_date_string(" -3 month",base,Dialect::Uk)),"2017-12-21T00:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("2d", base, Dialect::Uk)),
+            "2018-03-23T11:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2d 03:00", base, Dialect::Uk)),
+            "2018-03-23T03:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("3 weeks", base, Dialect::Uk)),
+            "2018-04-11T11:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("3h", base, Dialect::Uk)),
+            "2018-03-21T14:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("6 months", base, Dialect::Uk)),
+            "2018-09-21T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("6 months ago", base, Dialect::Uk)),
+            "2017-09-21T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("3 hours ago", base, Dialect::Uk)),
+            "2018-03-21T08:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(" -3h", base, Dialect::Uk)),
+            "2018-03-21T08:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(" -3 month", base, Dialect::Uk)),
+            "2017-12-21T00:00:00+00:00"
+        );
 
         // absolute date with year, month, day - formal ISO and informal UK or US
-        assert_eq!(display(parse_date_string("2017-06-30",base,Dialect::Uk)),"2017-06-30T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("30/06/17",base,Dialect::Uk)),"2017-06-30T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("06/30/17",base,Dialect::Us)),"2017-06-30T00:00:00+00:00");
+        assert_eq!(
+            display(parse_date_string("2017-06-30", base, Dialect::Uk)),
+            "2017-06-30T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("30/06/17", base, Dialect::Uk)),
+            "2017-06-30T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("06/30/17", base, Dialect::Us)),
+            "2017-06-30T00:00:00+00:00"
+        );
 
         // may be followed by time part, formal and informal
-        assert_eq!(display(parse_date_string("2017-06-30 08:20:30",base,Dialect::Uk)),"2017-06-30T08:20:30+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 08:20:30 +02:00",base,Dialect::Uk)),"2017-06-30T06:20:30+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 08:20:30 +0200",base,Dialect::Uk)),"2017-06-30T06:20:30+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30T08:20:30Z",base,Dialect::Uk)),"2017-06-30T08:20:30+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30T08:20:30",base,Dialect::Uk)),"2017-06-30T08:20:30+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 8.20",base,Dialect::Uk)),"2017-06-30T08:20:00+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 8.30pm",base,Dialect::Uk)),"2017-06-30T20:30:00+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 8:30pm",base,Dialect::Uk)),"2017-06-30T20:30:00+00:00");
-        assert_eq!(display(parse_date_string("2017-06-30 2am",base,Dialect::Uk)),"2017-06-30T02:00:00+00:00");
-        assert_eq!(display(parse_date_string("30 June 2018",base,Dialect::Uk)),"2018-06-30T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("June 30, 2018",base,Dialect::Uk)),"2018-06-30T00:00:00+00:00");
-        assert_eq!(display(parse_date_string("June   30,    2018",base,Dialect::Uk)),"2018-06-30T00:00:00+00:00");
-
-
+        assert_eq!(
+            display(parse_date_string("2017-06-30 08:20:30", base, Dialect::Uk)),
+            "2017-06-30T08:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(
+                "2017-06-30 08:20:30 +02:00",
+                base,
+                Dialect::Uk
+            )),
+            "2017-06-30T06:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(
+                "2017-06-30 08:20:30 +0200",
+                base,
+                Dialect::Uk
+            )),
+            "2017-06-30T06:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30T08:20:30Z", base, Dialect::Uk)),
+            "2017-06-30T08:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30T08:20:30", base, Dialect::Uk)),
+            "2017-06-30T08:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30 8.20", base, Dialect::Uk)),
+            "2017-06-30T08:20:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30 8.30pm", base, Dialect::Uk)),
+            "2017-06-30T20:30:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30 8:30pm", base, Dialect::Uk)),
+            "2017-06-30T20:30:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2017-06-30 2am", base, Dialect::Uk)),
+            "2017-06-30T02:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("30 June 2018", base, Dialect::Uk)),
+            "2018-06-30T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("June 30, 2018", base, Dialect::Uk)),
+            "2018-06-30T00:00:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("June   30,    2018", base, Dialect::Uk)),
+            "2018-06-30T00:00:00+00:00"
+        );
     }
 
     fn get_err(r: DateResult<Interval>) -> String {
@@ -212,10 +333,16 @@ mod tests {
     #[test]
     fn durations() {
         assert_eq!(parse_duration("6h").unwrap(), Interval::Seconds(6 * 3600));
-        assert_eq!(parse_duration("4 hours ago").unwrap(), Interval::Seconds(-4 * 3600));
+        assert_eq!(
+            parse_duration("4 hours ago").unwrap(),
+            Interval::Seconds(-4 * 3600)
+        );
         assert_eq!(parse_duration("5 min").unwrap(), Interval::Seconds(5 * 60));
         assert_eq!(parse_duration("10m").unwrap(), Interval::Seconds(10 * 60));
-        assert_eq!(parse_duration("15m ago").unwrap(), Interval::Seconds(-15 * 60));
+        assert_eq!(
+            parse_duration("15m ago").unwrap(),
+            Interval::Seconds(-15 * 60)
+        );
 
         assert_eq!(parse_duration("1 day").unwrap(), Interval::Days(1));
         assert_eq!(parse_duration("2 days ago").unwrap(), Interval::Days(-2));
@@ -227,9 +354,21 @@ mod tests {
         assert_eq!(parse_duration("8 years").unwrap(), Interval::Months(12 * 8));
 
         // errors
-        assert_eq!(get_err(parse_duration("2020-01-01")), "unexpected absolute date");
-        assert_eq!(get_err(parse_duration("2 days 15:00")), "unexpected time component");
-        assert_eq!(get_err(parse_duration("tuesday")), "unexpected date component");
-        assert_eq!(get_err(parse_duration("bananas")), "expected week day or month name");
+        assert_eq!(
+            get_err(parse_duration("2020-01-01")),
+            "unexpected absolute date"
+        );
+        assert_eq!(
+            get_err(parse_duration("2 days 15:00")),
+            "unexpected time component"
+        );
+        assert_eq!(
+            get_err(parse_duration("tuesday")),
+            "unexpected date component"
+        );
+        assert_eq!(
+            get_err(parse_duration("bananas")),
+            "expected week day or month name"
+        );
     }
 }
