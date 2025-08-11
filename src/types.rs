@@ -128,33 +128,27 @@ impl ByName {
                 if diff_days == 0 {
                     // same day - comparing times will determine which way we swing...
                     let base_time = base.time();
-                    let this_time = NaiveTime::from_hms(ts.hour, ts.min, ts.sec);
+                    let this_time = NaiveTime::from_hms_opt(ts.hour, ts.min, ts.sec)?;
                     if let Some(correct) = next_last_direction(&this_time, &base_time, nd.direct) {
                         date = add_days(date, 7 * correct as i64)?;
                     }
                 }
-                ts.to_date_time(date.date())
+                ts.to_date_time(date)
             }
             ByName::MonthName(nd) => {
-                let mut date = base.timezone().ymd_opt(this_year, nd.unit, 1).single()?;
-                if let Some(correct) = next_last_direction(&date, &base.date(), nd.direct) {
-                    date = base
-                        .timezone()
-                        .ymd_opt(this_year + correct, nd.unit, 1)
-                        .single()?;
+                let mut date = base.timezone().with_ymd_and_hms(this_year, nd.unit, 1, 0, 0,0 ).single()?;
+                if let Some(correct) = next_last_direction(&date, &base, nd.direct) {
+                    date = date.with_year(this_year + correct)?;
                 }
                 ts.to_date_time(date)
             }
             ByName::DayMonth(yd) => {
                 let mut date = base
                     .timezone()
-                    .ymd_opt(this_year, yd.month, yd.day)
+                    .with_ymd_and_hms(this_year, yd.month, yd.day, 0, 0, 0)
                     .single()?;
-                if let Some(correct) = next_last_direction(&date, &base.date(), yd.direct) {
-                    date = base
-                        .timezone()
-                        .ymd_opt(this_year + correct, yd.month, yd.day)
-                        .single()?;
+                if let Some(correct) = next_last_direction(&date, &base, yd.direct) {
+                    date = date.with_year(this_year + correct)?;
                 }
                 ts.to_date_time(date)
             }
@@ -170,9 +164,9 @@ pub struct AbsDate {
 }
 
 impl AbsDate {
-    pub fn to_date<Tz: TimeZone>(self, base: DateTime<Tz>) -> Option<Date<Tz>> {
+    pub fn to_date<Tz: TimeZone>(self, base: DateTime<Tz>) -> Option<DateTime<Tz>> {
         base.timezone()
-            .ymd_opt(self.year, self.month, self.day)
+            .with_ymd_and_hms(self.year, self.month, self.day,0,0,0)
             .single()
     }
 }
@@ -218,7 +212,7 @@ impl Skip {
                     .checked_add_signed(Duration::seconds((secs as i64) * (self.skip as i64)))
                     .unwrap();
                 if !ts.empty() {
-                    ts.to_date_time(date.date())?
+                    ts.to_date_time(date)?
                 } else {
                     date
                 }
@@ -237,7 +231,7 @@ impl Skip {
                     (year - pmm / 12, 12 - pmm % 12 + 1)
                 };
                 // let chrono work out if the result makes sense
-                let mut date = base.timezone().ymd_opt(year, month as u32, day).single();
+                let mut date = base.timezone().with_ymd_and_hms(year, month as u32, day, 0,0,0).single();
                 // dud dates like Feb 30 may result, so we back off...
                 while date.is_none() {
                     day -= 1;
@@ -246,7 +240,7 @@ impl Skip {
                         eprintln!("fkd date");
                         return None;
                     }
-                    date = base.timezone().ymd_opt(year, month as u32, day).single();
+                    date = base.timezone().with_ymd_and_hms(year, month as u32, day,0,0,0).single();
                 }
                 ts.to_date_time(date.unwrap())?
             }
@@ -354,13 +348,14 @@ impl TimeSpec {
         self.empty
     }
 
-    pub fn to_date_time<Tz: TimeZone>(self, date: Date<Tz>) -> Option<DateTime<Tz>> {
-        let dt = date.and_hms_micro(self.hour, self.min, self.sec, self.microsec);
+    pub fn to_date_time<Tz: TimeZone>(self, date: DateTime<Tz>) -> Option<DateTime<Tz>> {
+        let dt = date.with_hour(self.hour)?.with_minute(self.min)?.with_second(self.sec)?.with_nanosecond(1000 * self.microsec)?;
         if let Some(offs) = self.offset {
             let zoffset = dt.offset().clone();
             let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
-            let nd = NaiveDateTime::from_timestamp(tstamp, 1000 * self.microsec);
-            Some(DateTime::from_utc(nd, zoffset))
+            // let nd = NaiveDateTime::from_timestamp(tstamp, 1000 * self.microsec);
+            // let q = DateTime::from_timestamp(tstamp, 1000 * self.microsec)?;
+            dt.timezone().timestamp_opt(tstamp, 1000 * self.microsec).single()
         } else {
             Some(dt)
         }

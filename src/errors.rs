@@ -38,8 +38,6 @@ pub trait OrErr<T> {
     /// use when the error message is always a simple string
     fn or_err(self, msg: &str) -> DateResult<T>;
 
-    /// use when the message needs to be constructed
-    fn or_then_err<C: FnOnce() -> String>(self, fun: C) -> DateResult<T>;
 }
 
 impl<T> OrErr<T> for Option<T> {
@@ -47,7 +45,4 @@ impl<T> OrErr<T> for Option<T> {
         self.ok_or(date_error(msg))
     }
 
-    fn or_then_err<C: FnOnce() -> String>(self, fun: C) -> DateResult<T> {
-        self.ok_or_else(|| date_error(&fun()))
-    }
 }
