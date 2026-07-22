@@ -37,12 +37,10 @@ impl From<ScanError> for DateError {
 pub trait OrErr<T> {
     /// use when the error message is always a simple string
     fn or_err(self, msg: &str) -> DateResult<T>;
-
 }
 
 impl<T> OrErr<T> for Option<T> {
     fn or_err(self, msg: &str) -> DateResult<T> {
         self.ok_or(date_error(msg))
     }
-
 }

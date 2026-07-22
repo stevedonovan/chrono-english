@@ -136,7 +136,10 @@ impl ByName {
                 ts.to_date_time(date)
             }
             ByName::MonthName(nd) => {
-                let mut date = base.timezone().with_ymd_and_hms(this_year, nd.unit, 1, 0, 0,0 ).single()?;
+                let mut date = base
+                    .timezone()
+                    .with_ymd_and_hms(this_year, nd.unit, 1, 0, 0, 0)
+                    .single()?;
                 if let Some(correct) = next_last_direction(&date, &base, nd.direct) {
                     date = date.with_year(this_year + correct)?;
                 }
@@ -166,7 +169,7 @@ pub struct AbsDate {
 impl AbsDate {
     pub fn to_date<Tz: TimeZone>(self, base: DateTime<Tz>) -> Option<DateTime<Tz>> {
         base.timezone()
-            .with_ymd_and_hms(self.year, self.month, self.day,0,0,0)
+            .with_ymd_and_hms(self.year, self.month, self.day, 0, 0, 0)
             .single()
     }
 }
@@ -231,7 +234,10 @@ impl Skip {
                     (year - pmm / 12, 12 - pmm % 12 + 1)
                 };
                 // let chrono work out if the result makes sense
-                let mut date = base.timezone().with_ymd_and_hms(year, month as u32, day, 0,0,0).single();
+                let mut date = base
+                    .timezone()
+                    .with_ymd_and_hms(year, month as u32, day, 0, 0, 0)
+                    .single();
                 // dud dates like Feb 30 may result, so we back off...
                 while date.is_none() {
                     day -= 1;
@@ -240,7 +246,10 @@ impl Skip {
                         eprintln!("fkd date");
                         return None;
                     }
-                    date = base.timezone().with_ymd_and_hms(year, month as u32, day,0,0,0).single();
+                    date = base
+                        .timezone()
+                        .with_ymd_and_hms(year, month as u32, day, 0, 0, 0)
+                        .single();
                 }
                 ts.to_date_time(date.unwrap())?
             }
@@ -349,13 +358,19 @@ impl TimeSpec {
     }
 
     pub fn to_date_time<Tz: TimeZone>(self, date: DateTime<Tz>) -> Option<DateTime<Tz>> {
-        let dt = date.with_hour(self.hour)?.with_minute(self.min)?.with_second(self.sec)?.with_nanosecond(1000 * self.microsec)?;
+        let dt = date
+            .with_hour(self.hour)?
+            .with_minute(self.min)?
+            .with_second(self.sec)?
+            .with_nanosecond(1000 * self.microsec)?;
         if let Some(offs) = self.offset {
             let zoffset = dt.offset().clone();
             let tstamp = dt.timestamp() - offs + zoffset.fix().local_minus_utc() as i64;
             // let nd = NaiveDateTime::from_timestamp(tstamp, 1000 * self.microsec);
             // let q = DateTime::from_timestamp(tstamp, 1000 * self.microsec)?;
-            dt.timezone().timestamp_opt(tstamp, 1000 * self.microsec).single()
+            dt.timezone()
+                .timestamp_opt(tstamp, 1000 * self.microsec)
+                .single()
         } else {
             Some(dt)
         }
