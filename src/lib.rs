@@ -82,8 +82,8 @@ mod types;
 use errors::*;
 use types::*;
 
-pub use errors::{date_error, date_result};
 pub use errors::{DateError, DateResult};
+pub use errors::{date_error, date_result};
 pub use types::Interval;
 
 #[derive(Debug, Hash, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -131,11 +131,12 @@ pub fn parse_duration(s: &str) -> DateResult<Interval> {
     }
 
     // shouldn't happen, but.
-    if d.date.is_none() {
+    let Some(date) = d.date else {
         return date_result("could not parse date");
-    }
+    };
 
-    match d.date.unwrap() {
+    // unwrap fine because of the above condition
+    match date {
         DateSpec::Absolute(_) => date_result("unexpected absolute date"),
         DateSpec::FromName(_) => date_result("unexpected date component"),
         DateSpec::Relative(skip) => Ok(skip.to_interval()),

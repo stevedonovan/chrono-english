@@ -1,6 +1,6 @@
-use errors::*;
+use crate::errors::*;
+use crate::types::*;
 use scanlex::{Scanner, Token};
-use types::*;
 
 // when we parse dates, there's often a bit of time parsed..
 #[derive(Clone, Copy, Debug)]
@@ -52,11 +52,7 @@ impl<'a> DateParser<'a> {
             let y = self.scanner.get_int::<u32>()?;
             let y = if y < 100 {
                 // pivot (1940, 2040)
-                if y > 40 {
-                    1900 + y
-                } else {
-                    2000 + y
-                }
+                if y > 40 { 1900 + y } else { 2000 + y }
             } else {
                 y
             };
@@ -68,7 +64,7 @@ impl<'a> DateParser<'a> {
 
     fn parse_date(&mut self) -> DateResult<Option<DateSpec>> {
         let mut t = self.scanner.next().or_err("empty date string")?;
-
+        // unwrap is fine because we know the token is a char
         let sign = if t.is_char() && t.as_char().unwrap() == '-' {
             true
         } else {
@@ -86,6 +82,7 @@ impl<'a> DateParser<'a> {
                 _ => None,
             };
             if let Some(skip) = shortcut {
+                // unwrap ok here because 'day' is known time unit
                 return Ok(Some(DateSpec::skip(time_unit("day").unwrap(), skip)));
             } else if let Some(d) = Direction::from_name(&name) {
                 // maybe next or last?
@@ -217,8 +214,9 @@ impl<'a> DateParser<'a> {
             if frac.is_empty() {
                 return date_result("expected fractional second after '.'");
             }
+
             let frac = "0.".to_owned() + &frac;
-            let micros_f = frac.parse::<f64>().unwrap() * 1.0e6;
+            let micros_f = frac.parse::<f64>().map_err(date_error)? * 1.0e6;
             tnext = self.scanner.next();
             micros_f as u32
         } else {
@@ -227,7 +225,7 @@ impl<'a> DateParser<'a> {
         if tnext.is_none() {
             Ok(TimeSpec::new(hour, min, sec, micros))
         } else {
-            let tok = tnext.as_ref().unwrap();
+            let tok = tnext.as_ref().unwrap(); // ok because we must be Some here
             if let Some(ch) = tok.as_char() {
                 let expecting_offset = match ch {
                     '+' | '-' => true,
@@ -253,11 +251,7 @@ impl<'a> DateParser<'a> {
                     let res: i64 = (60 * (minute + 60 * hour)).into();
 
                     // Apply sign.
-                    if ch == '-' {
-                        -res
-                    } else {
-                        res
-                    }
+                    if ch == '-' { -res } else { res }
                 } else {
                     0
                 };
