@@ -87,9 +87,8 @@ impl<'a> DateParser<'a> {
             };
             if let Some(skip) = shortcut {
                 return Ok(Some(DateSpec::skip(time_unit("day").unwrap(), skip)));
-            } else
-            // maybe next or last?
-            if let Some(d) = Direction::from_name(&name) {
+            } else if let Some(d) = Direction::from_name(&name) {
+                // maybe next or last?
                 self.direct = d;
             }
         }

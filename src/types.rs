@@ -206,14 +206,12 @@ impl Skip {
     ) -> Option<DateTime<Tz>> {
         Some(match self.unit {
             Interval::Seconds(secs) => {
-                base.checked_add_signed(Duration::seconds((secs as i64) * (self.skip as i64)))
-                    .unwrap() // <--- !!!!
+                base.checked_add_signed(Duration::seconds((secs as i64) * (self.skip as i64)))?
             }
             Interval::Days(days) => {
                 let secs = 60 * 60 * 24 * days;
-                let date = base
-                    .checked_add_signed(Duration::seconds((secs as i64) * (self.skip as i64)))
-                    .unwrap();
+                let date =
+                    base.checked_add_signed(Duration::seconds((secs as i64) * (self.skip as i64)))?;
                 if !ts.empty() {
                     ts.to_date_time(date)?
                 } else {
@@ -251,7 +249,7 @@ impl Skip {
                         .with_ymd_and_hms(year, month as u32, day, 0, 0, 0)
                         .single();
                 }
-                ts.to_date_time(date.unwrap())?
+                ts.to_date_time(date?)?
             }
         })
     }
