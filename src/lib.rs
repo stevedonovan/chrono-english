@@ -105,6 +105,7 @@ where
         dp = dp.american_date();
     }
     let d = dp.parse()?;
+    // println!("spec {:?}", d);
 
     // we may have explicit hour:minute:sec
     let tspec = d.time.unwrap_or_else(|| TimeSpec::new_empty());
@@ -209,6 +210,11 @@ mod tests {
         );
         assert_eq!(
             display(parse_date_string("April 1 8.30pm", base, Dialect::Uk)),
+            "2018-04-01T20:30:00+00:00"
+        );
+        // allow the day to be first
+        assert_eq!(
+            display(parse_date_string("1 April 8.30pm", base, Dialect::Uk)),
             "2018-04-01T20:30:00+00:00"
         );
 

@@ -130,8 +130,14 @@ impl<'a> DateParser<'a> {
                         let name = name.to_lowercase();
                         if let Some(month) = month_name(&name) {
                             if let Ok(year) = self.scanner.get_int::<u32>() {
-                                // 4 July 2017
-                                Some(DateSpec::absolute(year, month, day))
+                                let ahead = self.scanner.peek();
+                                if ahead == '.' || ahead == ':' {
+                                    self.maybe_time(ahead, year);
+                                    self.scanner.get(); // and grab that char
+                                    Some(DateSpec::from_day_month(day, month, self.direct))
+                                } else {
+                                    Some(DateSpec::absolute(year, month, day))
+                                }
                             } else {
                                 // 4 July
                                 Some(DateSpec::from_day_month(day, month, self.direct))
@@ -171,12 +177,7 @@ impl<'a> DateParser<'a> {
                         '-' => Some(self.iso_date(n)?),
                         '/' => Some(self.informal_date(n)?),
                         ':' | '.' => {
-                            let kind = if ch == ':' {
-                                TimeKind::Formal
-                            } else {
-                                TimeKind::Informal
-                            };
-                            self.maybe_time = Some((n, kind));
+                            self.maybe_time(ch, n);
                             None
                         }
                         _ => return date_result(&format!("unexpected char {:?}", ch)),
@@ -186,6 +187,15 @@ impl<'a> DateParser<'a> {
             }
             _ => return date_result(&format!("not expected token {:?}", t)),
         })
+    }
+
+    fn maybe_time(&mut self, ch: char, hour: u32) {
+        let kind = if ch == ':' {
+            TimeKind::Formal
+        } else {
+            TimeKind::Informal
+        };
+        self.maybe_time = Some((hour, kind));
     }
 
     fn formal_time(&mut self, hour: u32) -> DateResult<TimeSpec> {
