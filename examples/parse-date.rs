@@ -1,5 +1,5 @@
 extern crate chrono_english;
-use chrono_english::{parse_date_string, Dialect};
+use chrono_english::{Dialect, parse_date_string};
 
 extern crate chrono;
 use chrono::prelude::*;
@@ -14,6 +14,7 @@ const USAGE: &str = "
 Parsing Dates in English
   -a, --american informal dates are like 9/11 not 20/03
   -u, --utc  evaluate in UTC, not Local timezone
+  -d, --duration parse and display as a duration
   <date> (string) the date
   <base> (default now) the base for relative dates
 ";
@@ -55,12 +56,19 @@ fn run() -> BoxResult<()> {
     } else {
         Dialect::Uk
     };
+
+    let duration = args.get_bool("duration");
+    if duration {
+        let res = chrono_english::parse_duration(&datestr)?;
+        println!("{:#?}", res);
+        return Ok(());
+    }
+
     if utc {
         parse_and_compare(&datestr, &basestr, Utc::now(), dialect)?;
     } else {
         parse_and_compare(&datestr, &basestr, Local::now(), dialect)?;
     }
-
     Ok(())
 }
 
