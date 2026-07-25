@@ -2,7 +2,7 @@ use crate::errors::*;
 use crate::types::*;
 use scanlex::{Scanner, Token};
 
-// when we parse dates, there's often a bit of time parsed..
+// when we parse dates, there's often a bit of time parsed.
 #[derive(Clone, Copy, Debug)]
 enum TimeKind {
     Formal,
@@ -131,7 +131,7 @@ impl<'a> DateParser<'a> {
                         if let Some(month) = month_name(&name) {
                             if let Ok(year) = self.scanner.get_int::<u32>() {
                                 let ahead = self.scanner.peek();
-                                if ahead == '.' || ahead == ':' {
+                                if ['.', ':', 'a', 'p'].contains(&ahead) {
                                     self.maybe_time(ahead, year);
                                     self.scanner.get(); // and grab that char
                                     Some(DateSpec::from_day_month(day, month, self.direct))
@@ -161,13 +161,13 @@ impl<'a> DateParser<'a> {
                                 };
                                 if !got_ago {
                                     if let Some(h) = t.to_integer() {
-                                        self.maybe_time = Some((h as u32, TimeKind::Unknown));
+                                        self.maybe_time(' ', h as u32);
                                     }
                                 }
                             }
                             Some(DateSpec::skip(u, n))
                         } else if name == "am" || name == "pm" {
-                            self.maybe_time = Some((n, TimeKind::AmPm(name == "pm")));
+                            self.maybe_time(name.chars().next().unwrap(), n);
                             None
                         } else {
                             return date_result("expected month or time unit");
@@ -190,10 +190,11 @@ impl<'a> DateParser<'a> {
     }
 
     fn maybe_time(&mut self, ch: char, hour: u32) {
-        let kind = if ch == ':' {
-            TimeKind::Formal
-        } else {
-            TimeKind::Informal
+        let kind = match ch {
+            ':' => TimeKind::Formal,
+            '.' => TimeKind::Informal,
+            'a' | 'p' => TimeKind::AmPm(ch == 'p'),
+            _ => TimeKind::Unknown,
         };
         self.maybe_time = Some((hour, kind));
     }
@@ -205,7 +206,7 @@ impl<'a> DateParser<'a> {
         let sec = if let Some(t) = self.scanner.next() {
             if let Some(ch) = t.as_char() {
                 if ch != ':' {
-                    return date_result("expecting ':'");
+                    return date_result("expecting ':' after 'hour:minute'");
                 }
                 self.scanner.get_int::<u32>()?
             } else {
@@ -291,7 +292,7 @@ impl<'a> DateParser<'a> {
         Ok(TimeSpec::new(hour, min, 0, 0))
     }
 
-    fn am_pm(name: &str, mut hour: u32) -> DateResult<u32> {
+    fn am_pm(name: &str, hour: u32) -> DateResult<u32> {
         match name {
             "am" if hour == 12 => Ok(0),
             "am" => Ok(hour),
@@ -308,8 +309,8 @@ impl<'a> DateParser<'a> {
     fn parse_time(&mut self) -> DateResult<Option<TimeSpec>> {
         // here the date parser looked ahead and saw an hour followed by some separator
         if let Some(hour_sep) = self.maybe_time {
-            // didn't see a separator, so look...
             let (hour, mut kind) = hour_sep;
+            // didn't see a separator, so look...
             if let TimeKind::Unknown = kind {
                 kind = match self.scanner.get_char()? {
                     ':' => TimeKind::Formal,

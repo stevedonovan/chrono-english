@@ -105,7 +105,6 @@ where
         dp = dp.american_date();
     }
     let d = dp.parse()?;
-    // println!("spec {:?}", d);
 
     // we may have explicit hour:minute:sec
     let tspec = d.time.unwrap_or_else(|| TimeSpec::new_empty());
