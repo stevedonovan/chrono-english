@@ -329,6 +329,44 @@ mod tests {
         );
     }
 
+    #[test]
+    fn date_first() {
+        let base = parse_date_string("2018-03-21 11:00", Utc::now(), Dialect::Uk).unwrap();
+
+        assert_eq!(
+            display(parse_date_string("08:20:30 2017-06-30", base, Dialect::Uk)),
+            "2017-06-30T08:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(
+                "08:20:30 +02:00 2017-06-30",
+                base,
+                Dialect::Uk
+            )),
+            "2017-06-30T06:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string(
+                "08:20:30 +0200 2017-06-30",
+                base,
+                Dialect::Uk
+            )),
+            "2017-06-30T06:20:30+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("8.20 2017-06-30", base, Dialect::Uk)),
+            "2017-06-30T08:20:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("8.30pm 2017-06-30", base, Dialect::Uk)),
+            "2017-06-30T20:30:00+00:00"
+        );
+        assert_eq!(
+            display(parse_date_string("2am 2017-06-30", base, Dialect::Uk)),
+            "2017-06-30T02:00:00+00:00"
+        );
+    }
+
     fn get_err(r: DateResult<Interval>) -> String {
         r.err().unwrap().to_string()
     }

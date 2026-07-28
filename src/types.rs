@@ -1,5 +1,6 @@
 use chrono::Duration;
 use chrono::prelude::*;
+use scanlex::Token;
 
 // implements next/last direction in expressions like 'next friday' and 'last 4 july'
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -313,6 +314,7 @@ pub struct TimeSpec {
     pub empty: bool,
     pub offset: Option<i64>,
     pub microsec: u32,
+    pub maybe_token: Option<Token>,
 }
 
 impl TimeSpec {
@@ -324,6 +326,7 @@ impl TimeSpec {
             empty: false,
             offset: None,
             microsec,
+            maybe_token: None,
         }
     }
 
@@ -335,6 +338,7 @@ impl TimeSpec {
             empty: false,
             offset: Some(offset),
             microsec,
+            maybe_token: None,
         }
     }
 
@@ -346,7 +350,13 @@ impl TimeSpec {
             empty: true,
             offset: None,
             microsec: 0,
+            maybe_token: None,
         }
+    }
+
+    pub fn with_token(mut self, token: Option<Token>) -> TimeSpec {
+        self.maybe_token = token;
+        self
     }
 
     pub fn empty(&self) -> bool {
@@ -377,6 +387,15 @@ impl TimeSpec {
 pub struct DateTimeSpec {
     pub date: Option<DateSpec>,
     pub time: Option<TimeSpec>,
+}
+
+impl DateTimeSpec {
+    pub fn from_time(time_spec: TimeSpec) -> DateTimeSpec {
+        Self {
+            date: None,
+            time: Some(time_spec),
+        }
+    }
 }
 
 // same as chrono's 'count days from monday' convention
