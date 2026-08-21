@@ -33,7 +33,7 @@ but otherwise it means the Friday of next week (plus 7 days)
 Date and time can be specified also by a number of time units. So "2 days", "3 hours".
 Again, first three letters, but 'd','m' and 'y' are understood (so "3h"). We make
 a distinction between _second_ intervals (seconds,minutes,hours), _day_ intervals (days,weeks)
- and _month_ intervals (months,years).
+and _month_ intervals (months,years).
 
 Second intervals are not followed by a time, but day and month intervals can be. Without
 a time, a day interval has the same time as the base time (which defaults to 'now')
@@ -41,9 +41,11 @@ a time, a day interval has the same time as the base time (which defaults to 'no
 Month intervals always give us the same date, if possible
 But adding a month to "30 Jan" will give "28 Feb" or "29 Feb" depending if a leap year.
 
-Finally, dates may be followed by time. Either 'formal' like 18:03, with optional
-second (like 18:03:40) or 'informal' like 6.03pm. So one gets "next friday 8pm' and so
-forth.
+Dates may be followed by time. Either 'formal' like 18:03, with optional
+second (like 18:03:40) or 'informal' like 6.03pm. So "next friday 8pm'..
+
+With the latest version, it is now possible to put the time first, like '18:03 1 July'
+or '4pm Friday'.
 
 ## API
 
@@ -53,14 +55,15 @@ or `Dialect::Us` currently.) The base time also specifies the desired timezone.
 
 ```rust
 extern crate chrono_english;
-use chrono_english::{parse_date_string,Dialect};
+use chrono_english::{parse_date_string, Dialect};
 
 extern crate chrono;
 use chrono::prelude::*;
 
-let date_time = parse_date_string("next friday 8pm", Local::now(), Dialect::Uk)?;
-println!("{}",date_time.format("%c"));
+let date_time = parse_date_string("next friday 8pm", Local::now(), Dialect::Uk) ?;
+println!("{}", date_time.format("%c"));
 ```
+
 There is a little command-line program `parse-date` in `examples` which can be used to play
 with these expressions:
 
