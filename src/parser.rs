@@ -126,6 +126,8 @@ impl<'a> DateParser<'a> {
                                 // MONTH DAY is like DAY MONTH (tho no time!)
                                 DateSpec::from_day_month(day, month, self.direct)
                             }
+                        } else if t == Token::End {
+                            DateSpec::from_day_month(1, month, self.direct)
                         } else {
                             return date_result(&format!("unknown token after month {:?}", t));
                         }

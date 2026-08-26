@@ -327,6 +327,11 @@ mod tests {
             display(parse_date_string("June   30,    2018", base, Dialect::Uk)),
             "2018-06-30T00:00:00+00:00"
         );
+
+        assert_eq!(
+            display(parse_date_string("May", base, Dialect::Uk)),
+            "2018-05-01T00:00:00+00:00"
+        );
     }
 
     #[test]
